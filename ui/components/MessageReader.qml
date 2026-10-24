@@ -26,6 +26,16 @@ Item {
   required property real leadingBoundaryOverlap
   required property color dimmerColor
   required property string panelFontFamily
+  // Local change (zeus): the message itself sits on a light page while the
+  // window around it keeps the theme. Senders write for white paper, and
+  // their own colours stay readable there.
+  readonly property color canvasColor: "#ececec"
+  readonly property color canvasTextColor: "#1f2328"
+  readonly property color canvasLinkColor: "#0969da"
+  readonly property color canvasQuoteColor: "#59636e"
+  readonly property real canvasPadding: Style.space(16)
+  // A reading face for the message, where the theme's is monospace.
+  readonly property string canvasFontFamily: "Adwaita Sans"
   // Which of the three ways of reading a message this window is set to. The
   // window's preference, not this message's: it may not be the one on screen,
   // because a message can be too heavy to draw the chosen way.
@@ -687,6 +697,16 @@ Item {
       onDismissRequested: function(key) { if (root.service) root.service.dismissSuggestion(key) }
     }
 
+    Rectangle {
+      x: bodyText.x - root.canvasPadding
+      y: bodyText.y - root.canvasPadding
+      width: bodyText.width + 2 * root.canvasPadding
+      height: bodyText.height + 2 * root.canvasPadding
+      radius: Style.space(6)
+      color: root.canvasColor
+      visible: bodyText.visible
+    }
+
     TextEdit {
       id: bodyText
       x: root.bodyInset + root.bodyOffset
@@ -710,20 +730,20 @@ Item {
       // in the first place.
       text: root.shownMode === "reader"
         ? Html.readerDocumentFor(root.readerDocument, ({
-            foreground: root.textColor,
-            background: root.backgroundColor,
-            link: root.linkColor,
-            quote: root.dimColor,
+            foreground: root.canvasTextColor,
+            background: root.canvasColor,
+            link: root.canvasLinkColor,
+            quote: root.canvasQuoteColor,
             fontSize: root.bodyFontSize,
             maxImageWidth: root.imageWidth,
             direction: root.bodyDirection
           }))
         : (root.shownMode === "original"
           ? Html.documentFor(root.bodyDocument, ({
-              foreground: root.textColor,
-              background: root.backgroundColor,
-              link: root.linkColor,
-              quote: root.dimColor,
+              foreground: root.canvasTextColor,
+              background: root.canvasColor,
+              link: root.canvasLinkColor,
+              quote: root.canvasQuoteColor,
               padding: 0,
               maxImageWidth: root.imageWidth,
               compact: root.narrowBody,
@@ -731,15 +751,15 @@ Item {
             }))
           : Html.plainTextDocument(root.service ? root.service.selectedBody.text : "",
               ({
-                foreground: root.textColor,
-                background: root.backgroundColor,
-                link: root.linkColor,
+                foreground: root.canvasTextColor,
+                background: root.canvasColor,
+                link: root.canvasLinkColor,
                 direction: root.bodyDirection
               }), root.bodySource === "html"))
-      color: root.textColor
-      selectionColor: Style.selectionFillFor(root.textColor, root.accentColor)
-      selectedTextColor: root.textColor
-      font.family: root.panelFontFamily
+      color: root.canvasTextColor
+      selectionColor: Style.selectionFillFor(root.canvasTextColor, root.canvasLinkColor)
+      selectedTextColor: root.canvasTextColor
+      font.family: root.canvasFontFamily
       // Body text, where the chrome around it is bodySmall: this is the one
       // long-form thing in the window and the only one that is read rather than
       // scanned. At bodySmall it was 11px against the 9pt — twelve — of the
