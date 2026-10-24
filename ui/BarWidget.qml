@@ -138,6 +138,17 @@ BarWidget {
   // closes over the gap rather than leaving a hole where the envelope was.
   readonly property bool drawsIcon: !gmail || gmail.showBarIcon
 
+  // zeus: a theme whose [icons] style is "color" ships a colour tile per bar
+  // widget in its icons.path; this one shows mail.png, mail-unread.png while
+  // mail waits and mail-offline.png while the account is not connected, so
+  // the state is in the tile. Without one, the stock envelope glyph is drawn.
+  readonly property string iconStyle: Commons.Color.pick("icons.style", "mono")
+  readonly property string iconDir: Commons.Color.pick("icons.path", "")
+  readonly property string iconSource: iconStyle === "color" && iconDir !== ""
+    ? "file://" + iconDir + "/" + (!button.connected ? "mail-offline.png"
+      : button.hasUnread ? "mail-unread.png" : "mail.png")
+    : ""
+
   visible: drawsIcon
   implicitWidth: drawsIcon ? button.implicitWidth : 0
   implicitHeight: drawsIcon ? button.implicitHeight : 0
@@ -162,8 +173,27 @@ BarWidget {
       ? root.foreground
       : Qt.darker(root.foreground, 1.55)
     readonly property bool hasUnread: !!root.gmail && root.gmail.unreadTotal > 0
+    readonly property string tileSource: root.iconSource
 
-    iconComponent: Component {
+    iconComponent: root.iconSource !== "" ? colorIcon : glyphIcon
+
+    Component {
+      id: colorIcon
+      Item {
+        Image {
+          anchors.centerIn: parent
+          width: Math.round(parent.width * Number(Commons.Color.pick("icons.scale", "1.25")))
+          height: width
+          sourceSize.width: Math.round(width * Screen.devicePixelRatio)
+          sourceSize.height: Math.round(height * Screen.devicePixelRatio)
+          fillMode: Image.PreserveAspectFit
+          source: button.tileSource
+        }
+      }
+    }
+
+    Component {
+      id: glyphIcon
       Item {
         GmailIcon {
           anchors.centerIn: parent
