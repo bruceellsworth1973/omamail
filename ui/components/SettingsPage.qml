@@ -511,7 +511,7 @@ Column {
 
       Text {
         width: parent.width
-        text: "Opens mailto: links, SUPER+SHIFT+E, and SUPER+SHIFT+ALT+E for a new message."
+        text: "Opens mailto: links, SUPER+M, and SUPER+ALT+M for a new message."
         color: root.dimColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption
@@ -541,8 +541,8 @@ Column {
         && root.service.defaultMailClient !== ""
       text: mailClientRow.isDefault ? "Undo" : "Set as default"
       tooltipText: mailClientRow.isDefault
-        ? "Give SUPER+SHIFT+E back to Omarchy's own email binding"
-        : "Make Omamail open mailto: links and SUPER+SHIFT+E"
+        ? "Give email back to Omarchy's own binding, SUPER+SHIFT+E"
+        : "Make Omamail open mailto: links and SUPER+M"
       foreground: root.textColor
       fontFamily: root.panelFontFamily
       onClicked: root.service.setDefaultMailClient(!mailClientRow.isDefault)

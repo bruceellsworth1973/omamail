@@ -1,7 +1,7 @@
 #!/bin/sh
 # Makes Omamail the desktop's mail client, or hands the job back.
 #
-#   default-mail.sh on <plugin-dir>   claim mailto: and SUPER+SHIFT+E
+#   default-mail.sh on <plugin-dir>   claim mailto: and put mail on SUPER+M
 #   default-mail.sh off               restore Omarchy's own email bindings
 #   default-mail.sh status            print `default` or `not-default`
 #
@@ -9,8 +9,10 @@
 # only one would leave the other opening HEY:
 #
 #   - the x-scheme-handler/mailto default, which register-mailto.sh owns
-#   - SUPER+SHIFT+E and SUPER+SHIFT+ALT+E, overridden by a managed block in
-#     ~/.config/hypr/bindings.lua (hl.unbind + o.bind, the documented pattern)
+#   - SUPER+SHIFT+E and SUPER+SHIFT+ALT+E, Omarchy's email keys, unbound by a
+#     managed block in ~/.config/hypr/bindings.lua (hl.unbind + o.bind, the
+#     documented pattern), which puts mail on SUPER+M and SUPER+ALT+M instead
+#     (zeus: the owner's choice of keys)
 #
 # Omarchy's own files are never touched. `off` removes the block and leaves the
 # file byte-identical to what it was before `on`; the mailto default stays with
@@ -36,8 +38,8 @@ bindings_block() {
 $BLOCK_BEGIN
 hl.unbind("SUPER + SHIFT + E")
 hl.unbind("SUPER + SHIFT + ALT + E")
-o.bind("SUPER + SHIFT + E", "Email", "omarchy-shell shell summon omamail '{}'")
-o.bind("SUPER + SHIFT + ALT + E", "New email", "omarchy-shell shell summon omamail '{\"compose\":true}'")
+o.bind("SUPER + M", "Email", "omarchy-shell shell summon omamail '{}'")
+o.bind("SUPER + ALT + M", "New email", "omarchy-shell shell summon omamail '{\"compose\":true}'")
 $BLOCK_END
 EOF
 }
@@ -86,7 +88,7 @@ case "${1:-}" in
     add_block
     reload_hyprland
     printf '%s\n' 'Omamail is now the default mail client.'
-    printf '%s\n' 'SUPER+SHIFT+E opens Omamail; SUPER+SHIFT+ALT+E starts a new message.'
+    printf '%s\n' 'SUPER+M opens Omamail; SUPER+ALT+M starts a new message.'
     ;;
   off)
     [ "$#" -eq 1 ] || usage

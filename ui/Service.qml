@@ -461,7 +461,7 @@ Item {
     mailtoInstaller.running = true
   }
 
-  // Whether mailto: links and Omarchy's SUPER+SHIFT+E open Omamail. Empty
+  // Whether mailto: links and SUPER+M open Omamail. Empty
   // until default-mail.sh has been asked; the settings page asks on open,
   // because either half can change behind this window's back.
   property string defaultMailClient: ""
