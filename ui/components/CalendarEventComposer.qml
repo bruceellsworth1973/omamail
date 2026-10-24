@@ -589,7 +589,7 @@ Rectangle {
           width: Style.space(8)
           height: width
           radius: width / 2
-          color: calendarPalette.colorFor(calendarSelector.choice ? calendarSelector.choice.source.colorKey : "accent")
+          color: (calendarSelector.choice ? calendarPalette.colorForSource(calendarSelector.choice.source) : calendarPalette.colorFor("accent"))
         }
         indicator: ActionIcon {
           name: "chevronDown"
@@ -637,7 +637,7 @@ Rectangle {
                 width: Style.space(8)
                 height: width
                 radius: width / 2
-                color: calendarPalette.colorFor(calendarOption.modelData.source.colorKey)
+                color: calendarPalette.colorForSource(calendarOption.modelData.source)
               }
               Text {
                 width: parent.width - Style.space(40)

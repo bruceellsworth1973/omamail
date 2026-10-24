@@ -56,8 +56,8 @@ Rectangle {
         && String(event.source && event.source.recurrenceId || "") === ""
         && Calendar.caldavEventUrl(root.source.url, event) !== "")
   readonly property bool canWrite: canDelete && Calendar.writeRefusal(source, event) === ""
-  readonly property color eventColor: calendarPalette.colorFor(
-    source ? source.colorKey : "accent")
+  readonly property color eventColor: source
+    ? calendarPalette.colorForSource(source) : calendarPalette.colorFor("accent")
   readonly property string meetingLink: httpLink(event ? event.meetLink : "")
   readonly property string conferenceStatus: String(event && event.conferenceData
     && event.conferenceData.createRequest && event.conferenceData.createRequest.status

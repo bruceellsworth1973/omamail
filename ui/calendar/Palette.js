@@ -6,11 +6,38 @@ var ANSI_KEYS = {
   magenta: "color5", cyan: "color6"
 }
 
+// The calendar's own colour, as its provider gives it (Google's
+// backgroundColor), chosen per calendar in place of a theme slot. It is not a
+// slot: `defaultKey` never picks it, so a calendar uses its provider's colour
+// only when someone asked for that.
+var PROVIDER_KEY = "calendar"
+
 function keys() { return SLOT_KEYS.slice() }
 
 function normalizeKey(value) {
   var key = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
-  return SLOT_KEYS.indexOf(key) >= 0 ? key : ""
+  return SLOT_KEYS.indexOf(key) >= 0 || key === PROVIDER_KEY ? key : ""
+}
+
+// A provider colour is kept only as exactly `#rrggbb`.
+function normalizeHex(value) {
+  var text = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
+  return /^#[0-9a-f]{6}$/.test(text) ? text : ""
+}
+
+function isHex(value) { return normalizeHex(value) !== "" }
+
+// What to paint a calendar with: its theme slot, or its provider's colour as
+// `#rrggbb` when that was chosen and the provider sent one. A calendar set to
+// its own colour whose provider sent none falls back to the slot its id picks.
+function effectiveKey(source) {
+  var value = source || {}
+  var key = normalizeKey(value.colorKey)
+  if (key === PROVIDER_KEY) {
+    var hex = normalizeHex(value.providerColor)
+    return hex !== "" ? hex : defaultKey(value.id)
+  }
+  return key !== "" ? key : defaultKey(value.id)
 }
 
 function defaultKey(identity) {

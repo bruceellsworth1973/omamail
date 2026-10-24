@@ -103,6 +103,21 @@ pub async fn google(account: &str, token: &str) -> Result<Value, &'static str> {
     .map_err(|_| "calendar_timeout")?
 }
 
+// The colour the calendar has in Google, as `#rrggbb`. Google sends it as
+// `backgroundColor`; anything that is not exactly six hex digits is dropped
+// rather than handed to the interface.
+fn hex_color(value: &Value, key: &str) -> String {
+    value[key]
+        .as_str()
+        .filter(|text| {
+            text.len() == 7
+                && text.starts_with('#')
+                && text[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
+        })
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default()
+}
+
 fn google_calendar(account: &str, value: &Value) -> Result<Value, &'static str> {
     let id = bounded_text(value, "id").ok_or("calendar_invalid_response")?;
     if value["id"].as_str() != Some(id.as_str()) || matches!(id.as_str(), "." | "..") {
@@ -119,6 +134,7 @@ fn google_calendar(account: &str, value: &Value) -> Result<Value, &'static str> 
         "readOnly":!matches!(role.as_str(), "owner" | "writer"),
         "accessRole":role,"timeZone":bounded_text(value, "timeZone").unwrap_or_default(),
         "selected":value["selected"] == true,"hidden":value["hidden"] == true,
+        "color":hex_color(value, "backgroundColor"),
         "defaultReminders":value["defaultReminders"].as_array().cloned().unwrap_or_default(),
         "canCreateMeet":value["conferenceProperties"]["allowedConferenceSolutionTypes"]
             .as_array().is_some_and(|types| types.iter().any(|kind| kind == "hangoutsMeet"))
@@ -650,6 +666,28 @@ mod tests {
             source["sourceId"],
             google_calendar("other@example.org", &json!({"id":"team@example.org"})).unwrap()["sourceId"]
         );
+    }
+
+    #[test]
+    fn google_calendar_keeps_only_a_hex_colour() {
+        let colour = |value: Value| {
+            let mut calendar = json!({"id":"team@example.org"});
+            calendar["backgroundColor"] = value;
+            google_calendar("me@example.org", &calendar).unwrap()["color"].clone()
+        };
+        assert_eq!(colour(json!("#9FE1E7")), "#9fe1e7");
+        for refused in [
+            json!("9fe1e7"),
+            json!("#9fe1e"),
+            json!("#9fe1e7ff"),
+            json!("#9fe1eg"),
+            json!("red"),
+            json!("url(x)"),
+            json!(12),
+            Value::Null,
+        ] {
+            assert_eq!(colour(refused.clone()), "", "{refused:?}");
+        }
     }
 
     #[test]

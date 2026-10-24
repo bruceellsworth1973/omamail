@@ -8,6 +8,7 @@ var KINDS = ["caldav", "google", "microsoft", "icloud", "hey"]
 var COLOR_KEYS = Palette.keys()
 
 function defaultColorKey(identity) { return Palette.defaultKey(identity) }
+function effectiveColorKey(source) { return Palette.effectiveKey(source) }
 
 function trimmed(value) {
   return String(value === undefined || value === null ? "" : value).trim()
@@ -47,6 +48,7 @@ function makeSource(raw) {
     calendarId: trimmed(value.calendarId),
     readOnly: value.readOnly === true, discovered: value.discovered === true,
     colorKey: colorKey,
+    providerColor: Palette.normalizeHex(value.providerColor),
     accessRole: trimmed(value.accessRole), timeZone: trimmed(value.timeZone),
     canCreateMeet: value.canCreateMeet === true,
     defaultReminders: Array.isArray(value.defaultReminders) ? value.defaultReminders.slice() : [],
@@ -332,6 +334,7 @@ function applyDiscovery(list, result) {
       enabled: saved ? saved.enabled !== false : initial,
       readOnly: remote.readOnly === true, discovered: true,
       colorKey: saved ? saved.colorKey : Palette.defaultKey(id),
+      providerColor: remote.color,
       accessRole: remote.accessRole, timeZone: remote.timeZone,
       canCreateMeet: remote.canCreateMeet, defaultReminders: remote.defaultReminders,
       remindersEnabled: saved ? saved.remindersEnabled : initial,

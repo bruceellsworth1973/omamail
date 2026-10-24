@@ -378,3 +378,28 @@ assert.strictEqual(namedMicrosoft.sources[0].name, "Work appointments",
   assert.strictEqual(sources.hasNone(true, google), false,
     "a Google mailbox brings its own calendar")
 }
+
+{
+  // Discovery keeps the provider's colour; the choice to use it is the user's.
+  const found = sources.applyDiscovery(sources.emptyList(), {
+    provider: "google", accountId: "me@example.org",
+    calendars: [
+      { sourceId: "google:me@example.org:a", calendarId: "a", name: "A", color: "#9FE1E7" },
+      { sourceId: "google:me@example.org:b", calendarId: "b", name: "B", color: "not a colour" }
+    ]
+  })
+  assert.strictEqual(found.sources[0].providerColor, "#9fe1e7")
+  assert.strictEqual(found.sources[1].providerColor, "")
+  assert.notStrictEqual(found.sources[0].colorKey, "calendar", "the default stays a theme slot")
+  const chosen = sources.setColor(found, "google:me@example.org:a", "calendar")
+  assert.strictEqual(chosen.sources[0].colorKey, "calendar")
+  assert.strictEqual(sources.effectiveColorKey(chosen.sources[0]), "#9fe1e7")
+  const again = sources.applyDiscovery(chosen, {
+    provider: "google", accountId: "me@example.org",
+    calendars: [{ sourceId: "google:me@example.org:a", calendarId: "a", name: "A", color: "#d50000" }]
+  })
+  assert.strictEqual(again.sources[0].colorKey, "calendar", "the choice survives a refresh")
+  assert.strictEqual(sources.effectiveColorKey(again.sources[0]), "#d50000", "and follows Google's colour")
+  const reloaded = sources.load(sources.serialize(again))
+  assert.strictEqual(reloaded.sources[0].providerColor, "#d50000", "the colour is saved")
+}

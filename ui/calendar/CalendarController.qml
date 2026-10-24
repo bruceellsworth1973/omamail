@@ -766,7 +766,7 @@ Item {
     var values = availableSources && Array.isArray(availableSources.sources)
       ? availableSources.sources : []
     for (var i = 0; i < values.length; i++) {
-      if (values[i] && values[i].id === String(sourceId)) return values[i].colorKey
+      if (values[i] && values[i].id === String(sourceId)) return Sources.effectiveColorKey(values[i])
     }
     return Sources.defaultColorKey(sourceId)
   }

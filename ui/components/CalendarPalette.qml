@@ -16,7 +16,10 @@ QtObject {
   // leave this empty and use the semantic colours supplied by App.qml.
   property string palettePath: ""
 
+  // A key, or a calendar's own colour already resolved to `#rrggbb`
+  // (Palette.effectiveKey), which is used as it is.
   function colorFor(key) {
+    if (Palette.isHex(key)) return Palette.normalizeHex(key)
     var normalized = Palette.normalizeKey(key)
     var value = values[normalized]
     if (typeof value === "string" && value !== "") return value
@@ -24,6 +27,8 @@ QtObject {
     if (normalized === "accent") return root.accentColor
     return root.dimColor
   }
+
+  function colorForSource(source) { return colorFor(Palette.effectiveKey(source)) }
 
   function reload() { paletteFile.reload() }
 

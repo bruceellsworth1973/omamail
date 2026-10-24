@@ -252,7 +252,7 @@ Column {
           width: Style.space(10)
           height: width
           radius: width / 2
-          color: calendarPalette.colorFor(calendarRow.source.colorKey)
+          color: calendarPalette.colorForSource(calendarRow.source)
         }
       }
 
@@ -348,7 +348,10 @@ Column {
         textFormat: Text.PlainText
       }
       Repeater {
-        model: calendarPalette.slots
+        // The theme's slots, then the calendar's own colour when its provider
+        // sent one.
+        model: calendarRow.source.providerColor
+          ? calendarPalette.slots.concat(["calendar"]) : calendarPalette.slots
         Button {
           id: paletteOption
           required property string modelData
@@ -361,8 +364,8 @@ Column {
           selected: String(modelData) === String(calendarRow.source.colorKey || "")
           foreground: root.textColor
           accent: root.accentColor
-          tooltipText: "Use " + modelData
-          Accessible.name: "Use " + modelData + " for "
+          tooltipText: modelData === "calendar" ? "Use the calendar's own color" : "Use " + modelData
+          Accessible.name: (modelData === "calendar" ? "Use its own color" : "Use " + modelData) + " for "
             + String(calendarRow.source.name || calendarRow.source.id)
           enabled: !!root.controller && !root.controller.savingSource
             && !root.controller.discoveringCalendars
@@ -384,7 +387,9 @@ Column {
               width: Style.space(8)
               height: width
               radius: width / 2
-              color: calendarPalette.colorFor(paletteOption.modelData)
+              color: paletteOption.modelData === "calendar"
+                ? calendarPalette.colorFor(calendarRow.source.providerColor)
+                : calendarPalette.colorFor(paletteOption.modelData)
             }
           }
         }
