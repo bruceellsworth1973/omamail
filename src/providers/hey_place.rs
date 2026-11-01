@@ -1,7 +1,9 @@
-//! Undo history for HEY. A place is `{"box": <kind>}`: the box a posting is
-//! in, by the kind `hey box` answers (`imbox`, `feedbox`, `trailbox`,
-//! `asidebox`, `laterbox`, `bubblebox`), or `trash`. Posting ids are stable, so
-//! a placed message keeps its id. See `crate::mail::place` and docs/BACKEND.md
+//! Undo history for HEY. A place is `{"box": <kind>, "seen": <bool>}`: the box
+//! a posting is in, by the kind `hey box` answers (`imbox`, `feedbox`,
+//! `trailbox`, `asidebox`, `laterbox`, `bubblebox`), or `trash`, and whether
+//! the box listing showed it seen. The Trash is read through a search that
+//! answers no seen state, so a Trash place has no `seen`. Posting ids are
+//! stable, so a placed message keeps its id. See `crate::mail::place` and docs/BACKEND.md
 //! "Undo history" for the contract every provider keeps.
 //!
 //! The HEY CLI answers no box for a single posting, so a posting is found by
@@ -13,8 +15,10 @@
 //! Putting a posting back writes only when its box differs: `hey trash` into
 //! the Trash, `hey move --to <kind>` into any box but Bubble Up, which is a
 //! scheduled time `move` cannot set (`undo_unsupported`). HEY marks a thread
-//! seen when it moves into any box but the Imbox, so an unseen one is marked
-//! unseen again; and it silently leaves out of Reply Later a thread that
+//! seen when it moves into any box but the Imbox, so a thread that was unseen
+//! is marked unseen again: by the listing it was just read from, or, out of
+//! the Trash, by the place's `seen`. Read state is never otherwise written. It
+//! also silently leaves out of Reply Later a thread that
 //! cannot be replied to, so a move there is read back before it counts.
 use crate::mail::place::{Located, PlaceItem, PlaceOutcome, Placed};
 use crate::mail::{Account, Provider};
@@ -38,20 +42,34 @@ const READ_TIMEOUT: Duration = Duration::from_secs(60);
 const WRITE_TIMEOUT: Duration = Duration::from_secs(20);
 const INVALID: &str = "mail_place_invalid_response";
 
-/// The box of a place, refused unless exactly what `locate` produces.
-fn place_box(place: &Value) -> Result<&'static str, &'static str> {
+/// The box of a place and the seen state it records, refused unless exactly
+/// what `locate` produces: `seen` is a boolean, and never beside the Trash.
+fn place_box(place: &Value) -> Result<(&'static str, Option<bool>), &'static str> {
     let object = place.as_object().ok_or("invalid_params")?;
-    if object.len() != 1 {
+    if object.keys().any(|key| key != "box" && key != "seen") {
         return Err("invalid_params");
     }
     let name = object
         .get("box")
         .and_then(Value::as_str)
         .ok_or("invalid_params")?;
-    PLACES
+    let kind = PLACES
         .into_iter()
         .find(|kind| *kind == name)
-        .ok_or("invalid_params")
+        .ok_or("invalid_params")?;
+    let seen = match object.get("seen") {
+        None => None,
+        Some(Value::Bool(seen)) if kind != TRASH => Some(*seen),
+        Some(_) => return Err("invalid_params"),
+    };
+    Ok((kind, seen))
+}
+
+fn place_of(found: Found) -> Value {
+    match found.seen {
+        Some(seen) => json!({"box":found.kind,"seen":seen}),
+        None => json!({"box":found.kind}),
+    }
 }
 
 /// The exact shape of a HEY place; unknown keys and out-of-range values are
@@ -228,7 +246,7 @@ async fn locate_with(remote: &impl Remote, ids: &[String]) -> Vec<Located> {
     ids.iter()
         .map(|id| {
             let place = places.get(posting(id)?).ok_or("invalid_params")?;
-            place.map(|found| json!({"box":found.kind}))
+            place.map(place_of)
         })
         .collect()
 }
@@ -238,6 +256,8 @@ struct Move<'a> {
     posting: &'a str,
     current: Option<Found>,
     wanted: &'static str,
+    /// The seen state the place recorded, if its listing had one.
+    seen: Option<bool>,
     moved: bool,
     failed: Option<&'static str>,
 }
@@ -271,10 +291,12 @@ async fn place_with(remote: &impl Remote, items: &[PlaceItem]) -> Vec<PlaceOutco
                 (Ok(posting), Ok(wanted)) => (posting, Ok(wanted)),
                 (Err(code), _) | (_, Err(code)) => ("", Err(code)),
             };
+            let (kind, seen) = wanted.unwrap_or((IMBOX, None));
             Move {
                 posting,
                 current: None,
-                wanted: wanted.unwrap_or(IMBOX),
+                wanted: kind,
+                seen,
                 moved: false,
                 failed: wanted.err(),
             }
@@ -343,16 +365,20 @@ async fn place_with(remote: &impl Remote, items: &[PlaceItem]) -> Vec<PlaceOutco
         }
     }
     // HEY marks a thread seen when it lands in any box but the Imbox; the
-    // Trash keeps it as it was. Read state is never part of a place.
+    // Trash keeps it as it was. The seen state the thread had just before the
+    // move is kept; out of the Trash, which answers none, the place's is.
     let unseen: Vec<usize> = moves
         .iter()
         .enumerate()
         .filter(|(_, entry)| {
+            let before = entry.current.and_then(|found| found.seen);
             entry.failed.is_none()
                 && entry.moved
-                && entry.wanted != IMBOX
                 && entry.wanted != TRASH
-                && entry.current.is_some_and(|found| found.seen == Some(false))
+                && match before {
+                    Some(seen) => !seen && entry.wanted != IMBOX,
+                    None => entry.seen == Some(false),
+                }
         })
         .map(|(index, _)| index)
         .collect();
@@ -457,6 +483,7 @@ mod tests {
         unreplyable: Vec<u64>,
         refuse_write: Option<&'static str>,
         refuse_read: Option<&'static str>,
+        unseen_refused: bool,
     }
 
     fn fake(postings: &[(u64, &'static str, bool)]) -> Fake {
@@ -472,6 +499,7 @@ mod tests {
             unreplyable: Vec::new(),
             refuse_write: None,
             refuse_read: None,
+            unseen_refused: false,
         }
     }
 
@@ -552,6 +580,9 @@ mod tests {
                 if let Some(code) = self.refuse_write {
                     return Err(code);
                 }
+                if self.unseen_refused && args[0] == "unseen" {
+                    return Err("HEY refused the request");
+                }
                 assert_eq!(args.last().unwrap(), "--json");
                 let ids: Vec<u64> = args[1..]
                     .iter()
@@ -631,11 +662,18 @@ mod tests {
         let ids: Vec<String> = (1..=10).map(id).collect();
         let places = locate_with(&remote, &ids).await;
         let expected: Vec<Located> = [
-            IMBOX, "feedbox", "feedbox", "feedbox", "trailbox", "asidebox", LATER, BUBBLE, TRASH,
+            (IMBOX, true),
+            ("feedbox", false),
+            ("feedbox", true),
+            ("feedbox", true),
+            ("trailbox", true),
+            ("asidebox", true),
+            (LATER, false),
+            (BUBBLE, true),
         ]
         .iter()
-        .map(|kind| Ok(json!({"box":kind})))
-        .chain([Err("undo_unsupported")])
+        .map(|(kind, seen)| Ok(json!({"box":kind,"seen":seen})))
+        .chain([Ok(json!({"box":TRASH})), Err("undo_unsupported")])
         .collect();
         assert_eq!(places, expected);
         for place in places.iter().flatten() {
@@ -655,7 +693,7 @@ mod tests {
         let remote = fake(&[(1, IMBOX, true), (2, "feedbox", true), (3, TRASH, true)]);
         assert_eq!(
             locate_with(&remote, &[id(1)]).await,
-            vec![Ok(json!({"box":IMBOX}))]
+            vec![Ok(json!({"box":IMBOX,"seen":true}))]
         );
         assert_eq!(remote.reads(), vec![strings(&["box", IMBOX, "--json"])]);
     }
@@ -723,8 +761,22 @@ mod tests {
             json!({"box":1}),
             json!({"box":["imbox"]}),
             json!({"labels":["imbox"]}),
+            json!({"seen":true}),
+            json!({"box":"trash","seen":false}),
+            json!({"box":"imbox","seen":null}),
+            json!({"box":"imbox","seen":"false"}),
+            json!({"box":"imbox","seen":0}),
+            json!({"box":"imbox","seen":true,"extra":1}),
         ] {
             assert_eq!(validate_place(&place), Err("invalid_params"), "{place}");
+        }
+        for place in [
+            json!({"box":"imbox"}),
+            json!({"box":"imbox","seen":false}),
+            json!({"box":"bubblebox","seen":true}),
+            json!({"box":"trash"}),
+        ] {
+            assert_eq!(validate_place(&place), Ok(()), "{place}");
         }
     }
 
@@ -855,6 +907,62 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn undoing_a_trash_puts_back_the_seen_state_the_place_recorded() {
+        let remote = fake(&[(1, "feedbox", false), (2, "feedbox", true)]);
+        let ids = vec![id(1), id(2)];
+        let before = locate_with(&remote, &ids).await;
+        assert_eq!(
+            before,
+            vec![
+                Ok(json!({"box":"feedbox","seen":false})),
+                Ok(json!({"box":"feedbox","seen":true})),
+            ]
+        );
+        let away = [item(1, TRASH), item(2, TRASH)];
+        assert_eq!(place_with(&remote, &away).await, vec![moved(1), moved(2)]);
+        assert_eq!(
+            locate_with(&remote, &ids).await,
+            vec![Ok(json!({"box":TRASH})); 2]
+        );
+        let back: Vec<PlaceItem> = ids
+            .iter()
+            .zip(&before)
+            .map(|(id, place)| PlaceItem {
+                id: id.clone(),
+                place: place.clone().unwrap(),
+            })
+            .collect();
+        assert_eq!(place_with(&remote, &back).await, vec![moved(1), moved(2)]);
+        assert_eq!(remote.now(1), ("feedbox", false));
+        assert_eq!(remote.now(2), ("feedbox", true));
+        assert_eq!(
+            remote.writes()[1..],
+            [
+                strings(&["move", "1", "2", "--to", "feedbox", "--json"]),
+                strings(&["unseen", "1", "--json"]),
+            ]
+        );
+        assert_eq!(locate_with(&remote, &ids).await, before);
+        // A Trash place records nothing, so nothing is marked.
+        let mut refused = fake(&[(1, TRASH, false)]);
+        assert_eq!(
+            place_with(&refused, &[item(1, "trailbox")]).await,
+            vec![moved(1)]
+        );
+        assert_eq!(refused.writes().len(), 1);
+        // A refused unseen is reported, though the move was made.
+        refused = fake(&[(1, TRASH, false)]);
+        let mut place = item(1, "trailbox");
+        place.place["seen"] = json!(false);
+        refused.unseen_refused = true;
+        assert_eq!(
+            place_with(&refused, &[place]).await,
+            vec![Err("hey_seen_not_restored")]
+        );
+        assert_eq!(refused.now(1).0, "trailbox");
+    }
+
+    #[tokio::test]
     async fn locate_and_place_cycles_are_exact_and_leave_read_state_alone() {
         let remote = fake(&[(1, LATER, false), (2, "trailbox", true), (3, IMBOX, true)]);
         let ids = vec![id(1), id(2)];
@@ -862,10 +970,9 @@ mod tests {
         for destination in [IMBOX, "asidebox", "feedbox", TRASH] {
             let away = [item(1, destination), item(2, destination)];
             assert_eq!(place_with(&remote, &away).await, vec![moved(1), moved(2)]);
-            assert_eq!(
-                locate_with(&remote, &ids).await,
-                vec![Ok(json!({"box":destination})); 2]
-            );
+            for place in locate_with(&remote, &ids).await {
+                assert_eq!(place.unwrap()["box"], destination);
+            }
             let back: Vec<PlaceItem> = ids
                 .iter()
                 .zip(&before)
@@ -877,11 +984,8 @@ mod tests {
             let outcome = place_with(&remote, &back).await;
             assert_eq!(outcome, vec![moved(1), moved(2)]);
             assert_eq!(locate_with(&remote, &ids).await, before);
+            assert_eq!(remote.now(1), (LATER, false));
             assert_eq!(remote.now(2), ("trailbox", true));
-            if destination != TRASH {
-                // Out of a box that answered its seen state, it is kept.
-                assert_eq!(remote.now(1), (LATER, false));
-            }
         }
         assert_eq!(remote.now(3), (IMBOX, true));
     }
