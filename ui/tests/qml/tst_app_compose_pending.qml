@@ -238,9 +238,11 @@ Item {
       compare(shortcutSpy.target.context, "list")
       keyClick(Qt.Key_D)
       keyClick(Qt.Key_E)
-      compare(shortcutSpy.count, 2, "positive control: real mailbox shortcuts dispatch")
+      keyClick(Qt.Key_Delete)
+      compare(shortcutSpy.count, 3, "positive control: real mailbox shortcuts dispatch")
       compare(shortcutSpy.signalArguments[0][0], "trash")
       compare(shortcutSpy.signalArguments[1][0], "archive")
+      compare(shortcutSpy.signalArguments[2][0], "trash", "Delete trashes like d")
       app.startCompose("new")
       named(compose, "compose-subject-field").text = "Readiness draft"
       named(compose, "compose-body-editor").text = "Keep these words"
@@ -279,6 +281,7 @@ Item {
       shortcutSpy.clear()
       keyClick(Qt.Key_D)
       keyClick(Qt.Key_E)
+      keyClick(Qt.Key_Delete)
       compare(subject.text, "Readiness draftde")
       compare(shortcutSpy.count, 0, "typing must never dispatch a mailbox action")
 

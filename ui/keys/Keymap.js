@@ -78,7 +78,10 @@ var BINDINGS = [
     group: "Acting", label: "Archive (in Archive: move to Inbox)",
     hint: { list: "archive", reader: "archive" },
     inverse: { action: "unarchive", hint: "move to inbox" } },
-  { id: "trash", keys: ["d"], contexts: MAIL,
+  // Delete as well, because that is the key a desktop mail client deletes
+  // with. The hint stays `d`: one key per verb in the hint row.
+  { id: "trash", keys: ["d", "Delete"], contexts: MAIL,
+    hintKey: "d",
     group: "Acting", label: "Move to trash (in the trash: restore)",
     hint: { list: "trash", reader: "trash" },
     inverse: { action: "untrash", hint: "restore" } },

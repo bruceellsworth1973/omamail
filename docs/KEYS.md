@@ -119,7 +119,7 @@ used to exist, and they had.
 | `nextMember` | `n` | reader | Next message in the conversation |
 | `previousMember` | `p` | reader | Previous message in the conversation |
 | `archive` | `e` | mail | Archive (in Archive: move to Inbox) |
-| `trash` | `d` | mail | Move to trash (in the trash: restore) |
+| `trash` | `d`, `Delete` | mail | Move to trash (in the trash: restore) |
 | `star` | `s` | mail | Star or unstar |
 | `moveToLabel` | `v` | mail | Move to |
 | `markRead` | `Shift+I` | mail | Mark read |
