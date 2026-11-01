@@ -11,6 +11,7 @@ import "../message/Calendar.js" as Calendar
 import "../message/Unsubscribe.js" as Unsub
 import "../message/Outbox.js" as Outbox
 import "Model.js" as Model
+import "UndoHistory.js" as UndoHistory
 import "Accounts.js" as Accounts
 import "Aliases.js" as Aliases
 import "../providers/Registry.js" as Provider
@@ -1885,6 +1886,7 @@ Item {
           }
           root.pendingAction = ""
           root.pendingActionQuery = ""
+          if (located && !(failure && !Array.isArray(failedIds))) root.recordMove(action, located, failed, prepared.targetsOf)
           var message = failure && Array.isArray(failedIds) && rows.length > 1
             ? Model.batchFailureNote(rows.length, failedIds.length, root.actionLabel(action), failure)
             : String(failure || settleError || "")
@@ -1940,12 +1942,36 @@ Item {
         else if (targets.length > 1) root.api.batchModify(targets, change.add, change.remove, done)
         else root.api.modifyMessage(targets[0], change.add, change.remove, done)
       }
-      if (root.pendingAction !== "") root.queueAction(ids.join(","), action, actionQuery, quiet, memberOnly, dispatch, function(intoToken) {
+      // Where each message was, asked of the server before it moves, so the
+      // move can be taken back. A mailbox that cannot say still acts; it only
+      // leaves nothing to undo.
+      var located = null
+      function recordedDispatch() {
+        if (allRead || !UndoHistory.recordsMove(action) || !root.platform
+            || !root.platform.backendCanUndoMoves || !root.backend) { dispatch(); return }
+        root.backend.call("mail.locate", {accountId: account, ids: targets}, function(result, error) {
+          if (!error && result && Array.isArray(result.places)) located = result.places
+          dispatch()
+        })
+      }
+      if (root.pendingAction !== "") root.queueAction(ids.join(","), action, actionQuery, quiet, memberOnly, recordedDispatch, function(intoToken) {
         intents.coalesce(account, actionQuery, prepared.token, intoToken, prepared.generation)
       }, prepared.token, parameters.sourceLabelId, typeof completion === "function")
-      else dispatch()
+      else recordedDispatch()
     })
     return true
+  }
+
+  // A move that landed, handed to the window's undo history: the messages
+  // located before it, less the rows that failed. `failed` holds rows, and a
+  // row stands for every member of its conversation.
+  function recordMove(action, located, failed, targetsOf) {
+    if (!platform || typeof platform.recordMove !== "function") return
+    var failedTargets = []
+    for (var i = 0; i < failed.length; i++)
+      failedTargets = failedTargets.concat((targetsOf && targetsOf[failed[i]]) || [failed[i]])
+    var items = UndoHistory.stepItems(located, failedTargets)
+    if (items.length > 0) platform.recordMove({accountId: accountId, label: actionLabel(action), items: items})
   }
 
   // What is on screen, written back to the query cache.

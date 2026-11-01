@@ -1098,6 +1098,8 @@ Item {
     if (id === "zoomIn") return zoomBy(0.1)
     if (id === "zoomOut") return zoomBy(-0.1)
     if (id === "zoomReset") { if (service) service.setBodyZoom(1.0); return }
+    if (id === "undoMove") return service ? service.undoMove() : false
+    if (id === "redoMove") return service ? service.redoMove() : false
     if (id === "refresh") {
       if (calendarVisible) calendarView.refresh()
       else if (service) service.refresh()
@@ -1654,6 +1656,39 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           anchors.verticalCenterOffset: calendarHeaderSlot.visible && calendarHeaderSlot.stacked ? (Style.space(48) - header.height) / 2 : 0
           spacing: Style.space(8)
+
+          // The undo history's two ends, beside refresh: curved back and
+          // forward arrows. Shown wherever refresh is, dimmed with nothing to
+          // take back or do again, and absent on a backend without API 9.
+          IconButton {
+            objectName: "undo-move-button"
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !root.showPage && !root.composing && !root.calendarVisible
+              && !!root.service && root.service.backendCanUndoMoves === true
+            iconName: "undo"
+            tooltipText: root.service && root.service.undoMoveLabel !== ""
+              ? "Undo: " + root.service.undoMoveLabel + " · Super+Z" : "Nothing to undo"
+            foreground: root.dim
+            hoverColor: root.foreground
+            fontFamily: root.fontFamily
+            enabled: root.ready && !!root.service && root.service.canUndoMove === true
+            onClicked: root.service.undoMove()
+          }
+
+          IconButton {
+            objectName: "redo-move-button"
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !root.showPage && !root.composing && !root.calendarVisible
+              && !!root.service && root.service.backendCanUndoMoves === true
+            iconName: "redo"
+            tooltipText: root.service && root.service.redoMoveLabel !== ""
+              ? "Redo: " + root.service.redoMoveLabel + " · Super+Shift+Z" : "Nothing to redo"
+            foreground: root.dim
+            hoverColor: root.foreground
+            fontFamily: root.fontFamily
+            enabled: root.ready && !!root.service && root.service.canRedoMove === true
+            onClicked: root.service.redoMove()
+          }
 
           IconButton {
             objectName: "refresh-button"

@@ -29,6 +29,7 @@ var GLYPHS = {
   send: 0xF048A,         // send — the plane, solid: the outline one hatches at 16px
   sent: 0xF10DD,         // email-send-outline — balanced with the sidebar's outline glyphs
   undo: 0xF054C,         // undo
+  redo: 0xF044E,         // redo
   menu: 0xF035C,         // menu
   plus: 0xF0415,         // plus
   more: 0xF01D9,        // dots-vertical

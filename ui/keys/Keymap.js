@@ -87,6 +87,12 @@ var BINDINGS = [
     inverse: { action: "untrash", hint: "restore" } },
   { id: "star", keys: ["s"], contexts: MAIL,
     group: "Acting", label: "Star or unstar" },
+  // Super, the way the desktop's own undo reads, and Alt+Z is already undo
+  // send. Only moves and deletes are kept (`UndoHistory.recordsMove`).
+  { id: "undoMove", keys: ["Meta+Z"], contexts: MAIL,
+    group: "Acting", label: "Undo the last move or delete" },
+  { id: "redoMove", keys: ["Meta+Shift+Z"], contexts: MAIL,
+    group: "Acting", label: "Redo the move or delete undone" },
   // `v` because that is the key Gmail moves a message with, and issue #58 asks
   // for those shortcuts one for one. Not `m`: free here, but Gmail's `m` mutes
   // a conversation, and taking it for a move would be the one binding somebody

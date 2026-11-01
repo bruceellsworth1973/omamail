@@ -13,6 +13,7 @@ import "agent/Agent.js" as Agent
 
 import "account/Accounts.js" as Accounts
 import "account/Model.js" as Model
+import "account/UndoHistory.js" as UndoHistory
 import "account/Unified.js" as Unified
 import "providers/Registry.js" as Provider
 import "providers/Credentials.js" as CredentialKeys
@@ -106,6 +107,7 @@ Item {
   readonly property bool backendCanGoogleCalendars: backend.ready && backend.apiVersion >= 6
   // Older backends send the bare address.
   readonly property bool backendCanNameSender: backend.ready && backend.apiVersion >= 7
+  readonly property bool backendCanUndoMoves: backend.ready && backend.apiVersion >= 9
   readonly property bool calendarRemindersEnabled: !settings || settings.calendarRemindersEnabled !== false
   readonly property int calendarSnoozeMinutes: Math.max(1, Math.min(1440,
     Math.floor(Number(settings && settings.calendarSnoozeMinutes) || 5)))
@@ -2090,6 +2092,78 @@ Item {
   // draw this in a merged view — `Model.readingStatusLine` omits it, because
   // an age from one mailbox is not a claim about all of them.
   readonly property string syncedLabel: current ? current.syncedLabel : ""
+
+  // ------------------------------------------------------------ undo history
+  // Every move and delete across the mailboxes, the last hundred of them,
+  // newest last. It lives here rather than in the window so closing the window
+  // keeps it. A step is the messages and where they were before it, and taking
+  // it back or doing it again is the same thing: ask where they are now (that
+  // is the step the other way), then put them where the step says.
+  property var moveHistory: UndoHistory.empty()
+  property bool moveHistoryBusy: false
+  readonly property bool canUndoMove: backendCanUndoMoves && !moveHistoryBusy
+    && UndoHistory.canUndo(moveHistory)
+  readonly property bool canRedoMove: backendCanUndoMoves && !moveHistoryBusy
+    && UndoHistory.canRedo(moveHistory)
+  readonly property string undoMoveLabel: {
+    var step = UndoHistory.nextUndo(moveHistory)
+    return step ? String(step.label) : ""
+  }
+  readonly property string redoMoveLabel: {
+    var step = UndoHistory.nextRedo(moveHistory)
+    return step ? String(step.label) : ""
+  }
+
+  function recordMove(step) {
+    moveHistory = UndoHistory.record(moveHistory, step)
+  }
+
+  function undoMove() { return stepMove(true) }
+  function redoMove() { return stepMove(false) }
+
+  function stepMove(back) {
+    if (back ? !canUndoMove : !canRedoMove) return false
+    var step = back ? UndoHistory.nextUndo(moveHistory) : UndoHistory.nextRedo(moveHistory)
+    var host = findAccount(step.accountId)
+    // A mailbox removed since: its ids mean nothing now.
+    if (!host) {
+      moveHistory = UndoHistory.withoutAccount(moveHistory, step.accountId)
+      return false
+    }
+    var ids = step.items.map(function(item) { return item.id })
+    moveHistoryBusy = true
+    backend.call("mail.locate", {accountId: step.accountId, ids: ids}, function(located, locateError) {
+      if (locateError || !located || !Array.isArray(located.places)) {
+        root.finishMoveStep(host, back, step, null, null, locateError || "no answer")
+        return
+      }
+      backend.call("mail.place", {accountId: step.accountId, items: step.items}, function(placed, placeError) {
+        if (placeError || !placed || !Array.isArray(placed.results))
+          root.finishMoveStep(host, back, step, null, null, placeError || "no answer")
+        else root.finishMoveStep(host, back, step, located.places, placed.results, "")
+      })
+    })
+    return true
+  }
+
+  // A step that could not be put through at all stays where it was, so the
+  // same key tries it again; one that moved anything turns into its reverse.
+  function finishMoveStep(host, back, step, located, results, error) {
+    moveHistoryBusy = false
+    var verb = back ? "Undo" : "Redo"
+    if (error !== "") {
+      host.fail(verb + " failed: " + String(error.message || error))
+      return
+    }
+    var reverse = UndoHistory.reverseOf(step, located, results)
+    moveHistory = back ? UndoHistory.undone(moveHistory, reverse) : UndoHistory.redone(moveHistory, reverse)
+    var failed = UndoHistory.failures(results)
+    if (failed > 0) host.fail(verb + ": " + step.label + " · " + failed + " of " + step.items.length + " could not be moved")
+    else host.note((back ? "Undone: " : "Redone: ") + step.label)
+    host.refreshCounts()
+    if (!unified && host !== current) host.refresh()
+    refresh()
+  }
 
   function refresh() {
     if (!unified) {
