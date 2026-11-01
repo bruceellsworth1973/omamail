@@ -115,10 +115,10 @@ Item {
     id: outlookPage
     width: 600
     service: outlookService
-    textColor: Color.foreground
-    dimColor: Color.foreground
-    dangerColor: Color.accent
-    accentColor: Color.accent
+    textColor: Commons.Color.foreground
+    dimColor: Commons.Color.foreground
+    dangerColor: Commons.Color.accent
+    accentColor: Commons.Color.accent
     panelFontFamily: "monospace"
   }
 
