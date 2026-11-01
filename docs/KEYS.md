@@ -268,7 +268,10 @@ the reader, in both wide and narrow windows. There is no preview settling delay
 or read dwell: the same explicit-open path displays cached content or fetches
 the message and marks it read when that path normally would. Prefetching stays
 separate and never marks a message read. Moving at a list boundary does not
-reopen the same message. The context continues to park focus outside text fields,
+reopen the same message, and neither does `Enter`, `o` or `Right` on the message
+already in the reader (`Model.alreadyShowing`): a fresh select would throw away
+its body, the images let in and the place read, and fetch it again. A body that
+failed is opened again, which retries it. The context continues to park focus outside text fields,
 so successive navigation keys work while the reader is open.
 
 `s` is the one acting key that follows the reader rather than the cursor. With a message open it stars the open message, on every provider, because that is the star the button beside it draws; `e` and `d` act on the cursor row, which is the row the open message belongs to. The difference only shows on a provider whose listing collapses to conversations, where `n` and `p` can walk the reader onto a member while the cursor stays on the row.
@@ -284,7 +287,12 @@ Three rules, all in `ui/account/Model.js` so the node tests reach them:
   neighbours.
 - **`cursorAfterReload`** — the whole list was replaced, by a mailbox switch, a
   search, or a refresh. A cursor whose message survived keeps its place; one
-  whose message is gone starts at the top.
+  whose message is gone is dropped, and the next `j` starts at the top.
+
+The cursor's row is drawn as chosen, so there is a cursor only while the reader
+shows its message. The window opens with none, and when the reader goes back to
+the empty page the cursor goes with it. A row whose menu is open is the one
+exception: an open popup keeps its trigger selected.
 
 The last two exist because a cursor pointing at a message that is not listed
 cannot be found, and `cursorAfterOffset` restarts at the top from there. Every

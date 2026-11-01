@@ -615,6 +615,19 @@ function unlistedView(view) {
     hostForId: function(id) { return typeof on.hostForId === "function" ? on.hostForId(id) : on } }
 }
 
+// Whether opening `id` would only put the same message on screen again. A
+// fresh select throws the body, the images let in and the place read away and
+// fetches it all again, so Enter on the open message must not. A body still on
+// its way counts as shown; a failed one does not, so opening again retries it.
+// A preview is not open: opening it properly is still a change.
+function alreadyShowing(id, view) {
+  var state = view || ({})
+  var target = String(id || "")
+  return target !== "" && target === String(state.selectedId || "")
+    && state.currentView === "reader" && state.selectionIsPreview !== true
+    && (state.detailLoading === true || state.detailPainted === true)
+}
+
 // The row the reader's own buttons act on when the selection does not
 // reach the open message: the cursor's row while the open message is a
 // member of that row's conversation, else the open message itself. App moves
@@ -1300,12 +1313,13 @@ function cursorAfterRemoval(list, cursorId) {
 
 // Where the cursor goes when the whole list is replaced under it — a mailbox
 // switch, a search, a refresh that dropped things. The message it was on keeps
-// it if it survived; otherwise the top, which is where the eye goes anyway.
+// it if it survived; otherwise there is none. The cursor's row is drawn as
+// chosen, and seating it on the first row drew a message as chosen while the
+// reader showed the empty page. With no cursor `j` still opens the top row.
 function cursorAfterReload(list, cursorId) {
   var source = Array.isArray(list) ? list : []
-  if (source.length === 0) return ""
   if (indexById(source, cursorId) >= 0) return cursorId
-  return source[0].id
+  return ""
 }
 
 // Where the scroller has to sit for a row to be on screen. The list is a Column

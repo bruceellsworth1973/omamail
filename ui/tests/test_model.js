@@ -689,13 +689,14 @@ assert.strictEqual(model.pluralize(0, "message"), "0 messages")
   assert.strictEqual(model.cursorAfterRemoval([], "a"), "")
 
   // A list replaced underneath: keep the cursor if its message survived the
-  // reload, otherwise start at the top.
+  // reload, otherwise there is none, so no row is drawn as chosen while the
+  // reader shows nothing.
   assert.strictEqual(model.cursorAfterReload(rows, "b"), "b",
     "a refresh that kept the message keeps the cursor")
-  assert.strictEqual(model.cursorAfterReload(rows, "gone"), "a",
-    "a mailbox switch lands on the first row rather than nowhere")
-  assert.strictEqual(model.cursorAfterReload(rows, ""), "a",
-    "and so does a list arriving for the first time")
+  assert.strictEqual(model.cursorAfterReload(rows, "gone"), "",
+    "a mailbox switch does not mark the first row")
+  assert.strictEqual(model.cursorAfterReload(rows, ""), "",
+    "and neither does a list arriving for the first time")
   assert.strictEqual(model.cursorAfterReload([], "b"), "",
     "an empty mailbox has no row to sit on")
 }
@@ -1842,6 +1843,21 @@ deepEqual(model.unavailableActions({ archive: true, star: true }), ["move"])
   const owner = { canReportSpam: false }
   assert.strictEqual(model.isArchived({ ...filed, inSpam: true },
     model.unlistedView({ hostForId: () => owner }), "a1"), true, "the owning mailbox still decides spam")
+
+  // Opening the message already on screen is skipped, not refetched.
+  const showing = { selectedId: "m1", currentView: "reader", selectionIsPreview: false,
+    detailLoading: false, detailPainted: true }
+  assert.strictEqual(model.alreadyShowing("m1", showing), true, "drawn: nothing to do")
+  assert.strictEqual(model.alreadyShowing("m1", { ...showing, detailPainted: false, detailLoading: true }), true,
+    "still arriving: a second fetch would only restart it")
+  assert.strictEqual(model.alreadyShowing("m1", { ...showing, detailPainted: false }), false,
+    "a failed body is opened again, which retries it")
+  assert.strictEqual(model.alreadyShowing("m2", showing), false, "another message opens")
+  assert.strictEqual(model.alreadyShowing("m1", { ...showing, selectionIsPreview: true }), false,
+    "a preview is opened for real")
+  assert.strictEqual(model.alreadyShowing("m1", { ...showing, currentView: "list" }), false,
+    "the reader is not on screen")
+  assert.strictEqual(model.alreadyShowing("", { ...showing, selectedId: "" }), false)
 
   // The row the reader's buttons land on without a selection: the cursor's
   // row for a conversation member, the open message otherwise — App moves the

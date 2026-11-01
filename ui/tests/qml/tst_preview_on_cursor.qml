@@ -258,6 +258,64 @@ Item {
       compare(app.currentView, "reader")
     }
 
+    // Every row the list draws as the cursor's: the chosen fill.
+    function markedRows(item, out) {
+      var found = out || []
+      if (!item) return found
+      if (item.hasCursor === true && item.selected !== undefined) found.push(item)
+      var children = item.children || []
+      for (var i = 0; i < children.length; i++) markedRows(children[i], found)
+      return found
+    }
+
+    function test_the_window_opens_with_no_row_marked_beside_the_empty_reader() {
+      app.close()
+      app.open("{}")
+      waitForRendering(app)
+      compare(mailService.selectedId, "", "the reader shows its empty page")
+      compare(app.cursorId, "", "so no row is the cursor's")
+      compare(markedRows(app).length, 0, "and none is drawn as chosen")
+      app.runShortcut("cursorDown", "j")
+      compare(app.cursorId, "m1", "j still opens the top row")
+      compare(mailService.selectedId, "m1")
+    }
+
+    function test_enter_with_nothing_open_opens_the_top_row() {
+      compare(app.cursorId, "")
+      app.runShortcut("open", "Return")
+      compare(mailService.selectedId, "m1")
+      compare(app.cursorId, "m1")
+      compare(app.currentView, "reader")
+    }
+
+    function test_back_to_the_empty_reader_takes_the_mark_away() {
+      app.moveCursor(1)
+      app.moveCursor(1)
+      compare(app.cursorId, "m2")
+      tryCompare(markedRows(app), "length", 1)
+      app.back()
+      compare(mailService.selectedId, "")
+      tryCompare(app, "cursorId", "")
+      tryCompare(markedRows(app), "length", 0)
+    }
+
+    function test_opening_the_message_already_shown_does_not_draw_it_again() {
+      app.moveCursor(1)
+      compare(mailService.openSelects, 1)
+      app.runShortcut("open", "Return")
+      app.runShortcut("open", "o")
+      app.runShortcut("openReader", "Right")
+      compare(mailService.selectCount, 1, "the reader keeps what it is showing")
+      compare(app.cursorId, "m1")
+      compare(app.navKinds.join(","), "list,reader", "and Back still lands on the list")
+      mailService.beginFetch()
+      app.runShortcut("open", "Return")
+      compare(mailService.selectCount, 1, "a body on its way is not asked for twice")
+      mailService.failFetch()
+      app.runShortcut("open", "Return")
+      compare(mailService.selectCount, 2, "a failed one is asked for again")
+    }
+
     function test_bounds_do_not_reopen_the_same_message() {
       app.moveCursor(-1)
       compare(app.cursorId, "m3")

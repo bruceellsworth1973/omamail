@@ -325,7 +325,7 @@ Item {
       compare(record.trashed, [])
       tryCompare(account, "actionPreparations", 0)
       compare(ids(account), "3:4")
-      compare(app.cursorId, "3:4", "the cursor takes the place of the row that left")
+      compare(app.cursorId, "", "with nothing open no row is left marked as chosen")
       verify(hintLabels().indexOf("d restore") >= 0, "the hint says what d does here: " + hintLabels())
     }
 

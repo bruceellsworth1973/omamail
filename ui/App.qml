@@ -270,7 +270,9 @@ Item {
       else backToList()
       return true
     }
-    cursorId = next
+    // Nothing open, as with a row's menu beside the empty reader: there is no
+    // cursor to carry, or the next row would be drawn as chosen unopened.
+    cursorId = service.selectedId === "" ? "" : next
     revealCursorRow()
     return true
   }
@@ -538,6 +540,15 @@ Item {
   // The rich-document override belongs to one message.
   function openMessage(id) {
     if (!service) return
+    // Enter, o or Right on the message already in the reader: it stays as it
+    // is, body, images and place, rather than being fetched and drawn again.
+    if (Model.alreadyShowing(id, {
+          selectedId: service.selectedId, currentView: currentView,
+          selectionIsPreview: service.selectionIsPreview,
+          detailLoading: service.detailLoading, detailPainted: service.detailPainted })) {
+      cursorId = String(id)
+      return
+    }
     pendingComposeMode = ""
     pendingDraftId = ""
     reader.forceRichAnyway = false
@@ -926,7 +937,9 @@ Item {
       else backToList()
       return true
     }
-    cursorId = next
+    // Nothing open, as with a row's menu beside the empty reader: there is no
+    // cursor to carry, or the next row would be drawn as chosen unopened.
+    cursorId = service.selectedId === "" ? "" : next
     revealCursorRow()
     return true
   }
@@ -1002,8 +1015,10 @@ Item {
     // In Drafts, opening a draft from the keyboard is editing it: the
     // message is what was being written. A click still previews, so the
     // list can be read through without a composer opening on every row.
-    if (id === "open") return openOrEdit(cursorId)
-    if (id === "openReader") return openOrEdit(cursorId)
+    // With nothing open there is no cursor, so opening takes the top row, the
+    // row `j` would.
+    if (id === "open" || id === "openReader")
+      return openOrEdit(cursorId !== "" || !service ? cursorId : service.cursorOffset("", 1))
     if (id === "backToList") return backToList()
     if (id === "nextMember") return stepMember(1)
     if (id === "previousMember") return stepMember(-1)
@@ -1145,6 +1160,13 @@ Item {
     function onSelectedMessageChanged() { Qt.callLater(function() {
       root.resumeHeldCompose()
       root.resumeHeldDraft()
+    }) }
+    // The cursor's row is drawn as chosen, so with the reader back on its
+    // empty page there is no cursor: a row marked beside the help text looked
+    // open when it was not. Judged once the change has settled: a unified
+    // move clears one account's selection before the next account's lands.
+    function onSelectedIdChanged() { Qt.callLater(function() {
+      if (root.service && root.service.selectedId === "") root.cursorId = ""
     }) }
 
     // The cursor is an id too, and an IMAP id names a different message in
