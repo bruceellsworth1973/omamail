@@ -275,12 +275,12 @@ lives in `Service`, so closing the window keeps it; a shell restart starts it
 empty.
 
 Before a move is sent, the mailbox asks the backend where each message is
-(`mail.locate`, API 9). Taking a step back asks again — that answer is the
+(`mail.locate`, API 10). Taking a step back asks again — that answer is the
 step the other way, for redo — and then puts every message where it was
 (`mail.place`), which answers each message's id afterwards: on IMAP a move
 gives a message a new one. A step that fails as a whole stays to be tried
 again; one that moved some messages keeps the ones that moved. A backend
-older than API 9 records nothing and the arrows are not shown.
+older than API 10 records nothing and the arrows are not shown.
 
 ## The cursor
 
