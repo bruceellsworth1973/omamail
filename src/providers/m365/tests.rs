@@ -192,7 +192,7 @@ impl State {
         self.msgs.iter_mut().find(|m| m.id == id).unwrap()
     }
 
-    fn folder_id(role: Role) -> String {
+    pub(super) fn folder_id(role: Role) -> String {
         format!("folder-{}", role.well_known())
     }
 
@@ -245,9 +245,10 @@ impl State {
         let missing = || Resp::json(404, json!({"error": {"code": "ErrorItemNotFound"}}));
         match (req.method.as_str(), segments.as_slice()) {
             ("GET", ["mailFolders", wk]) => {
+                // By its well-known name or by its id.
                 let Some(role) = Role::ALL
                     .into_iter()
-                    .find(|r| r.well_known() == *wk)
+                    .find(|r| r.well_known() == *wk || Self::folder_id(*r) == *wk)
                     .filter(|r| self.roles.contains(r))
                 else {
                     return Resp::json(404, json!({"error": {"code": "ErrorFolderNotFound"}}));
@@ -304,7 +305,13 @@ impl State {
             }
             ("POST", ["messages", id, "move"]) => {
                 let to = req.json()["destinationId"].as_str().unwrap().to_owned();
-                let Some(role) = Role::ALL.into_iter().find(|r| r.well_known() == to) else {
+                // By its well-known name, or by its id while the mailbox has that folder.
+                let by_id = Role::ALL.into_iter().find(|r| Self::folder_id(*r) == to);
+                if by_id.is_some_and(|r| !self.roles.contains(&r)) {
+                    return missing();
+                }
+                let Some(role) = by_id.or(Role::ALL.into_iter().find(|r| r.well_known() == to))
+                else {
                     return Resp::status(400);
                 };
                 let Some(m) = self.msgs.iter_mut().find(|m| m.id == *id) else {
