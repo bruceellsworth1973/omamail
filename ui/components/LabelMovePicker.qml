@@ -25,6 +25,8 @@ Item {
   property string accountId: ""
   property var targets: []
   property int cursorIndex: 0
+  // Moving the cursor from the keyboard puts out the mouse's hover.
+  readonly property HoverGate hoverGate: HoverGate {}
   readonly property bool opened: menu.opened
 
   signal targetChosen(string labelId, string parentPath)
@@ -45,6 +47,7 @@ Item {
     var count = targets.length
     if (count === 0) return
     cursorIndex = Model.wrappedIndex(cursorIndex, delta, count)
+    hoverGate.keyboardMoved()
   }
 
   function choose(index) {
@@ -118,7 +121,7 @@ Item {
             width: parent.width
             implicitHeight: Style.spacing.popupRowHeight
             radius: Style.cornerRadius
-            color: rowHover.hovered || hasCursor
+            color: rowHover.shown || hasCursor
               ? Style.hoverFillFor(root.textColor, root.accentColor) : "transparent"
             border.width: hasCursor ? Style.normalBorderWidth : 0
             border.color: Style.hoverBorderFor(root.textColor, root.accentColor)
@@ -147,7 +150,7 @@ Item {
               elide: Text.ElideMiddle
             }
 
-            HoverHandler { id: rowHover }
+            PointerHover { id: rowHover; gate: root.hoverGate }
             TapHandler { gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: root.choose(row.index) }
           }
         }

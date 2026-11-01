@@ -644,6 +644,7 @@ Item {
     var next = service.cursorOffset(cursorId, delta)
     if (next === "") return
     cursorId = next
+    list.hoverGate.keyboardMoved()
     revealCursorRow()
     if (service.selectedId !== next || service.selectionIsPreview || currentView !== "reader")
       openMessage(next)

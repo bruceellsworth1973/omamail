@@ -37,6 +37,8 @@ Item {
   // because the list underneath it has changed: holding an index still would
   // leave the cursor on whatever row happened to inherit that position.
   property int cursorIndex: 0
+  // Moving the cursor from the keyboard puts out the mouse's hover.
+  readonly property HoverGate hoverGate: HoverGate {}
 
   signal labelChosen(string labelId)
 
@@ -67,6 +69,7 @@ Item {
     var matchCount = root.matchingLabels.length
     if (matchCount === 0) return
     cursorIndex = Model.wrappedIndex(cursorIndex, delta, matchCount)
+    hoverGate.keyboardMoved()
   }
 
   function chooseCursor() {
@@ -179,7 +182,7 @@ Item {
           width: labelList.width
           implicitHeight: Style.space(34)
           radius: Style.cornerRadius
-          color: labelRow.hasCursor || rowHover.hovered
+          color: labelRow.hasCursor || rowHover.shown
             ? Style.hoverFillFor(root.textColor, root.accentColor) : "transparent"
           border.width: labelRow.hasCursor ? Style.normalBorderWidth : 0
           border.color: Style.hoverBorderFor(root.textColor, root.accentColor)
@@ -200,7 +203,7 @@ Item {
             elide: Text.ElideRight
           }
 
-          HoverHandler { id: rowHover }
+          PointerHover { id: rowHover; gate: root.hoverGate }
 
           MouseArea {
             anchors.fill: parent

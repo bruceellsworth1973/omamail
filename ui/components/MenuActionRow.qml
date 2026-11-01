@@ -12,13 +12,15 @@ Rectangle {
   property var collection: []
   property int cursorIndex: -1
   readonly property bool selected: collection.indexOf(root) === cursorIndex
+  // The menu's, so moving its cursor from the keyboard puts out this hover.
+  property HoverGate hoverGate: null
 
   signal activated()
 
   implicitHeight: Style.spacing.popupRowHeight
   radius: Style.cornerRadius
   opacity: enabled ? 1.0 : 0.4
-  color: hover.hovered || selected
+  color: hover.shown || selected
     ? Qt.rgba(textColor.r, textColor.g, textColor.b, 0.08)
     : "transparent"
 
@@ -36,7 +38,7 @@ Rectangle {
     elide: Text.ElideRight
   }
 
-  HoverHandler { id: hover }
+  PointerHover { id: hover; gate: root.hoverGate }
   // The exclusive grab on press, not a passive one: a menu can sit over a
   // message row, whose MouseArea takes the exclusive grab if this does not,
   // and the release then opens the message under the menu instead of

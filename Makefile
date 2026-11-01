@@ -31,6 +31,7 @@ QML_FILES := ui/Service.qml ui/BarWidget.qml ui/App.qml ui/compose/RecoveryContr
 	ui/components/MessageRow.qml \
 	ui/components/MessageMenu.qml \
 	ui/components/MenuActionRow.qml ui/components/MenuSeparatorLine.qml \
+	ui/components/HoverGate.qml ui/components/PointerHover.qml \
 	ui/components/KeyRouter.qml \
 	ui/components/WheelScroller.qml \
 	ui/components/ActionIcon.qml \

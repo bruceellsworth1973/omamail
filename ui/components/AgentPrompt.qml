@@ -854,6 +854,9 @@ FocusScope {
       clip: true
       model: root.historyJobs
       keyNavigationEnabled: true
+      // The arrows move currentIndex, and that puts out the mouse's hover.
+      readonly property HoverGate hoverGate: HoverGate {}
+      onCurrentIndexChanged: hoverGate.keyboardMoved()
       spacing: Style.space(4)
       QQC.ScrollBar.vertical: QQC.ScrollBar {}
       footer: Flow {
@@ -886,7 +889,8 @@ FocusScope {
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
         }
-        background: Rectangle { color: parent.hovered || (historyList.activeFocus && parent.index === historyList.currentIndex) ? Style.hoverFillFor(root.textColor, root.accentColor) : Style.normalFillFor(root.textColor, root.accentColor) }
+        PointerHover { id: historyHover; gate: historyList.hoverGate }
+        background: Rectangle { color: historyHover.shown || (historyList.activeFocus && parent.index === historyList.currentIndex) ? Style.hoverFillFor(root.textColor, root.accentColor) : Style.normalFillFor(root.textColor, root.accentColor) }
         onClicked: root.selectHistory(modelData.id)
       }
       Text {

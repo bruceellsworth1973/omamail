@@ -46,6 +46,8 @@ Item {
   // content moves under a still pointer, and a hover that moved this would drag
   // the cursor back to whatever the pointer happened to rest on.
   property int cursorIndex: 0
+  // Moving the cursor from the keyboard puts out the mouse's hover.
+  readonly property HoverGate hoverGate: HoverGate {}
 
   // Whether the mailbox on screen is the merge of all of them, drawn the way
   // an active account is drawn because it is the same kind of choice.
@@ -107,6 +109,7 @@ Item {
   function moveCursor(delta) {
     if (root.rowCount === 0) return
     cursorIndex = Model.wrappedIndex(cursorIndex, delta, root.rowCount)
+    hoverGate.keyboardMoved()
   }
 
   // The combined row is first, so the accounts sit one further down than their
@@ -204,7 +207,7 @@ Item {
         radius: Style.cornerRadius
         color: root.unifiedActive
           ? Style.selectedFillFor(root.textColor, root.accentColor)
-          : (unifiedHover.hovered || hasCursor
+          : (unifiedHover.shown || hasCursor
             ? Style.hoverFillFor(root.textColor, root.accentColor) : "transparent")
         border.width: hasCursor ? Style.normalBorderWidth : 0
         border.color: Style.hoverBorderFor(root.textColor, root.accentColor)
@@ -260,7 +263,7 @@ Item {
           }
         }
 
-        HoverHandler { id: unifiedHover }
+        PointerHover { id: unifiedHover; gate: root.hoverGate }
         TapHandler {
           onTapped: {
             menu.close()
@@ -316,7 +319,7 @@ Item {
           radius: Style.cornerRadius
           color: row.inUse
             ? Style.selectedFillFor(root.textColor, root.accentColor)
-            : (rowHover.hovered || hasCursor
+            : (rowHover.shown || hasCursor
               ? Style.hoverFillFor(root.textColor, root.accentColor) : "transparent")
           // A border rather than a third fill: the mailbox you are in already
           // owns the selected one, and the keyboard has to be visible standing
@@ -391,7 +394,7 @@ Item {
             }
           }
 
-          HoverHandler { id: rowHover }
+          PointerHover { id: rowHover; gate: root.hoverGate }
           TapHandler {
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: {
@@ -439,7 +442,7 @@ Item {
     width: menu.width - menu.leftPadding - menu.rightPadding
     implicitHeight: Style.spacing.popupRowHeight
     radius: Style.cornerRadius
-    color: plainHover.hovered
+    color: plainHover.shown
       ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.08)
       : "transparent"
 
@@ -456,7 +459,7 @@ Item {
       elide: Text.ElideRight
     }
 
-    HoverHandler { id: plainHover }
+    PointerHover { id: plainHover; gate: root.hoverGate }
     TapHandler { gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: plainRow.activated() }
   }
 }

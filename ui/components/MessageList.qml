@@ -25,6 +25,8 @@ Column {
   required property color urgentColor
   required property string panelFontFamily
   property string cursorId: ""
+  // Moving the cursor from the keyboard closes it (App.moveCursor).
+  readonly property HoverGate hoverGate: HoverGate {}
   // The rows ticked for a bulk action, by id. Held above the list, like the
   // cursor, because a reload rebuilds every row.
   property var checkedIds: []
@@ -118,6 +120,7 @@ Column {
       // asked between the two; an empty summary for that instant draws an
       // empty row rather than throwing on every field.
       readonly property var modelData: root.service.messages[index] || ({})
+      hoverGate: root.hoverGate
 
       summary: modelData
       textColor: root.textColor

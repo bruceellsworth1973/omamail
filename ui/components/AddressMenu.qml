@@ -72,7 +72,12 @@ Item {
     })
     return values
   }
-  function moveCursor(step) { cursorIndex = Menu.nextSelectable(selectableRows(), cursorIndex, step) }
+  // Moving the cursor from the keyboard puts out the mouse's hover.
+  readonly property HoverGate hoverGate: HoverGate {}
+  function moveCursor(step) {
+    cursorIndex = Menu.nextSelectable(selectableRows(), cursorIndex, step)
+    hoverGate.keyboardMoved()
+  }
   function runCursor() { if (cursorIndex >= 0) menuRows[cursorIndex].activated() }
   function close() { menu.close() }
 
@@ -158,6 +163,7 @@ Item {
             panelFontFamily: root.panelFontFamily
             collection: pickRows.rows
             cursorIndex: root.cursorIndex
+            hoverGate: root.hoverGate
             text: modelData.name !== "" && modelData.name !== modelData.email
               ? modelData.name + " <" + modelData.email + ">" : modelData.email
             onActivated: root.pick(modelData.email)
@@ -192,5 +198,6 @@ Item {
     panelFontFamily: root.panelFontFamily
     collection: root.menuRows
     cursorIndex: root.cursorIndex
+    hoverGate: root.hoverGate
   }
 }

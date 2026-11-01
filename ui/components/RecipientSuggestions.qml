@@ -13,6 +13,8 @@ Rectangle {
   required property string panelFontFamily
 
   property int currentIndex: -1
+  // Moving the selection from the keyboard puts out the mouse's hover.
+  readonly property HoverGate hoverGate: HoverGate {}
 
   signal chosen(var contact)
 
@@ -26,6 +28,7 @@ Rectangle {
       currentIndex = Number(delta) < 0 ? count - 1 : 0
     else
       currentIndex = Math.max(0, Math.min(count - 1, currentIndex + Number(delta)))
+    hoverGate.keyboardMoved()
     suggestions.positionViewAtIndex(currentIndex, ListView.Contain)
   }
 
@@ -66,7 +69,7 @@ Rectangle {
       radius: Style.cornerRadius
       color: root.currentIndex === suggestion.index
         ? Style.selectedFillFor(root.textColor, root.accentColor)
-        : (suggestionHover.hovered
+        : (suggestionHover.shown
           ? Style.hoverFillFor(root.textColor, root.accentColor) : "transparent")
 
       Column {
@@ -99,7 +102,7 @@ Rectangle {
         }
       }
 
-      HoverHandler { id: suggestionHover }
+      PointerHover { id: suggestionHover; gate: root.hoverGate }
       TapHandler { onTapped: root.chosen(suggestion.modelData) }
     }
   }

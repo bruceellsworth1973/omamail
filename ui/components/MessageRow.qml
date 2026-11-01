@@ -70,9 +70,11 @@ Rectangle {
   // the button slid out from under the pointer, the row was hovered again,
   // and the lane flickered open and shut. A HoverHandler is passive and stays
   // hovered whatever the pointer is over inside the row.
-  readonly property bool hot: rowHover.hovered || hasCursor
+  readonly property bool hot: rowHover.shown || hasCursor
+  // The list's, so moving its cursor from the keyboard puts out this hover.
+  property HoverGate hoverGate: null
 
-  HoverHandler { id: rowHover }
+  PointerHover { id: rowHover; gate: root.hoverGate }
 
   // How many messages the conversation holds, for the badge — and zero for a
   // row that draws none, which `Model.badgeCount` decides: a provider that does
@@ -351,7 +353,7 @@ Rectangle {
         radius: 0
         color: checkMouse.pressed ? Style.pressedFillFor(root.textColor, root.accentColor)
           : (root.checked ? Style.selectedFillFor(root.textColor, root.accentColor)
-            : (checkMouse.containsMouse ? Style.hoverFillFor(root.textColor, root.accentColor)
+            : (checkMouse.containsMouse && rowHover.shown ? Style.hoverFillFor(root.textColor, root.accentColor)
               : "transparent"))
         borderSpec: root.checked
           ? Border.controlSpec("selected", root.textColor, root.accentColor)
