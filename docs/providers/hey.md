@@ -11,3 +11,22 @@ Required when touching HEY authentication, fetching, actions or presentation.
 - Unsupported optional flags may be removed and retried, with the result remembered. Only boolean flags may use this fallback; removing a value-taking flag would leave a positional argument behind.
 - HEY has neither star nor archive; do not emulate them by moving to Set Aside or Paper Trail.
 - Write the brand as HEY; lowercase `hey` means the command. In prose call the program the HEY CLI.
+
+## Undo history places
+
+`mail.locate` and `mail.place` (see docs/BACKEND.md "Undo history") live in `src/providers/hey_place.rs`. Both first check, like `hey.act`, that the `hey` on the path is the one Omamail resolves and is signed in as the account.
+
+- A place is `{"box": <kind>}`, with `<kind>` one of `imbox`, `feedbox`, `trailbox`, `asidebox`, `laterbox`, `bubblebox` (the kinds `hey box` answers) or `trash`. Any other key or value (`spam`, a display name, a short name such as `feed`, a box id) is `invalid_params`. Posting ids do not change, so `newId` is always `id`.
+- The CLI answers no box for a single posting. Locate reads `hey box <kind> --json` page by page (following `next_page`, at most 100 pages a box, the CLI's own `--all` bound) in the order above, then `hey search --in trash --json --page N`, and stops as soon as every posting asked about has been seen. A box whose answer names another kind, or a cursor starting with `-`, is `mail_place_invalid_response`. A posting found in none of them is `undo_unsupported`: Spam (no command lists it), the Screener, a thread inside a bundle row (the row's id is not the posting's), or a box beyond 100 pages. A listing that could not be read fails the postings it might have held with its own error.
+- Place reads every posting's box the same way and writes only when it differs: `hey trash <postings> --json` into the Trash, and `hey move <postings> --to <kind> --json` into any other box, one command per destination. A posting already in its box is not written.
+- `hey move` marks a thread seen when it lands in any box but the Imbox. A thread the box listing showed unseen is therefore marked `hey unseen` again after the move (`hey_seen_not_restored` if that is refused). Read state is never part of a place.
+- `hey move --to laterbox` skips a thread that cannot be replied to and still answers success, so a move into Reply Later is read back from Reply Later; one that did not land is `undo_unsupported`.
+
+Exactly undoable (box for box): any move between the Imbox, The Feed, Paper Trail, Set Aside, Reply Later and the Trash, in either direction, with the read-state caveat for the Trash below. Not undoable or lossy:
+
+- **Spam**: `hey spam` has no reverse and Spam cannot be listed, so a spammed thread has no place and cannot be put back (`undo_unsupported`). Redoing a spam is impossible too, since a place is never Spam.
+- **Bubble Up**: it is a scheduled time that `hey move` refuses as a destination and `hey bubble up` would set to a new time; a place of `bubblebox` is answered only for a posting already there, and a move back into it is `undo_unsupported`. Moving a thread out of Bubble Up and back cannot be undone.
+- **Out of the Trash**: `hey search` answers no seen state, so a thread put back from the Trash into any box but the Imbox arrives seen, whatever it was before it was trashed.
+- **Set Aside groups**: a thread moved out of Set Aside and back returns to Set Aside outside its group.
+- **Bundles**: a thread HEY shows only inside a bundle row cannot be located (`undo_unsupported`).
+- Locate assumes a posting is listed in one box; it answers the first box (in the order above) that lists it.
