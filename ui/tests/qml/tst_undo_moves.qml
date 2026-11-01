@@ -117,7 +117,7 @@ Item {
       // Every mailbox made here asks for its cached list. Unanswered, those
       // requests fill the backend's 64 slots and the actions under test wait
       // behind them.
-      fixture = BackendFixture.markReady(mailService, 9)
+      fixture = BackendFixture.markReady(mailService, 10)
       fixture.answers = {"cache.queryRestore": null,
         "mail.locate": function(params) {
           return { places: params.ids.map(function(id) {
@@ -132,8 +132,8 @@ Item {
         }}
       NativeModel.install(mailService)
       NativeIntentFixture.install(mailService)
-      // The model fixture marks the backend ready at API 1; undo needs 9.
-      BackendFixture.markReady(mailService, 9)
+      // The model fixture marks the backend ready at API 1; undo needs 10.
+      BackendFixture.markReady(mailService, 10)
     }
 
     function entry(provider, email) {
@@ -424,7 +424,7 @@ Item {
     }
 
     function test_an_older_backend_records_nothing_and_shows_no_buttons() {
-      mailService.backend.protocolInfo = { apiVersion: 8, protocol: 1, version: "0.0.0" }
+      mailService.backend.protocolInfo = { apiVersion: 9, protocol: 1, version: "0.0.0" }
       try {
         seed("gmail", "inbox", [message("1:2", ["INBOX"])])
         compare(named(app, "undo-move-button").visible, false)
@@ -434,7 +434,7 @@ Item {
         compare(requests("mail.locate").length, 0)
         compare(mailService.canUndoMove, false)
       } finally {
-        mailService.backend.protocolInfo = { apiVersion: 9, protocol: 1, version: "0.0.0" }
+        mailService.backend.protocolInfo = { apiVersion: 10, protocol: 1, version: "0.0.0" }
       }
     }
   }

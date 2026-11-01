@@ -250,7 +250,7 @@ the seven root commands.
 
 ## Undo history: `mail.locate` and `mail.place`
 
-API 9 adds two RPC methods (no CLI command) for an undo/redo history of actions that move or delete mail. A place says where one message is: its folder, label set, mailbox set or box. It is opaque to callers and provider-specific; read/unread, starred and other state that does not say where a message is never belongs to a place, and undo or redo never change it.
+API 10 adds two RPC methods (no CLI command) for an undo/redo history of actions that move or delete mail. A place says where one message is: its folder, label set, mailbox set or box. It is opaque to callers and provider-specific; read/unread, starred and other state that does not say where a message is never belongs to a place, and undo or redo never change it.
 
 `mail.locate {accountId, ids}` answers `{places: [{id, place} | {id, error}]}`, one entry per requested id in request order (a repeated id is read once and answered each time). It reads the provider live, never a cache, and never changes anything. `mail.place {accountId, items: [{id, place}]}` moves each message from wherever it is now to `place`, a value `mail.locate` answered for the same account, and answers `{results: [{id, newId} | {id, error}]}` in item order. `newId` is the message's id afterwards: the same id where ids are stable, a new one on IMAP. A message already at its place succeeds with `newId` equal to `id` and nothing written. Callers replace their ids with the `newId`s, so locate, place, locate, place cycles stay exact.
 
