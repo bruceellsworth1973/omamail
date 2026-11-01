@@ -11,6 +11,8 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
+#[path = "gmail_place.rs"]
+pub(crate) mod place;
 #[path = "gmail_queue.rs"]
 mod queue;
 #[path = "gmail_resources.rs"]

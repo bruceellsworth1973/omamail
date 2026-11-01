@@ -11,6 +11,7 @@ pub mod gmail_http;
 pub mod hey;
 pub mod hey_access;
 pub mod hey_actions;
+pub(crate) mod hey_place;
 pub mod imap;
 pub mod jmap;
 pub mod m365;

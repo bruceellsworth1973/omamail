@@ -2,6 +2,7 @@
 mod cancel;
 pub(crate) mod idle;
 mod mutation;
+pub(crate) mod place;
 mod read;
 use base64::{Engine, engine::general_purpose::STANDARD};
 pub(crate) use read::message_id;

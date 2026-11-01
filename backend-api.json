@@ -1,5 +1,5 @@
 {
-  "apiVersion": 8,
+  "apiVersion": 9,
   "releasedApiVersion": 8,
   "protocolVersion": 1,
   "methods": [
@@ -200,7 +200,9 @@
     "m365.deleteDraft",
     "m365.sendAs",
     "m365.invalidate",
-    "m365.cancel"
+    "m365.cancel",
+    "mail.locate",
+    "mail.place"
   ],
   "contractCases": [
     {
@@ -1470,10 +1472,170 @@
       "equals": {
         "message": "outbox_invalid_payload"
       }
+    },
+    {
+      "name": "mail locate rejects unknown fields",
+      "method": "mail.locate",
+      "params": {
+        "accountId": "contract@example.org",
+        "ids": [
+          "opaque-id"
+        ],
+        "execute": true
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail locate requires an account id",
+      "method": "mail.locate",
+      "params": {
+        "ids": [
+          "opaque-id"
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail locate refuses an unknown account",
+      "method": "mail.locate",
+      "params": {
+        "accountId": "absent@example.org",
+        "ids": [
+          "opaque-id"
+        ]
+      },
+      "errorCode": -32000,
+      "equals": {
+        "message": "mail_account_unknown"
+      }
+    },
+    {
+      "name": "mail locate rejects malformed IMAP IDs before any connection",
+      "method": "mail.locate",
+      "params": {
+        "accountId": "imap:sender@example.org",
+        "ids": [
+          "1:INBOX",
+          "bad"
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail place refuses a Gmail place with a read-state label before credentials",
+      "method": "mail.place",
+      "params": {
+        "accountId": "contract@example.org",
+        "items": [
+          {
+            "id": "contract-message",
+            "place": {
+              "labels": [
+                "INBOX",
+                "UNREAD"
+              ]
+            }
+          }
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail place refuses an unsorted Gmail place",
+      "method": "mail.place",
+      "params": {
+        "accountId": "contract@example.org",
+        "items": [
+          {
+            "id": "contract-message",
+            "place": {
+              "labels": [
+                "Label_1",
+                "INBOX"
+              ]
+            }
+          }
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail place refuses two places for one message",
+      "method": "mail.place",
+      "params": {
+        "accountId": "contract@example.org",
+        "items": [
+          {
+            "id": "contract-message",
+            "place": {
+              "labels": [
+                "INBOX"
+              ]
+            }
+          },
+          {
+            "id": "contract-message",
+            "place": {
+              "labels": []
+            }
+          }
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
+    },
+    {
+      "name": "mail place rejects unknown item fields",
+      "method": "mail.place",
+      "params": {
+        "accountId": "contract@example.org",
+        "items": [
+          {
+            "id": "contract-message",
+            "place": {
+              "labels": []
+            },
+            "execute": true
+          }
+        ]
+      },
+      "errorCode": -32602,
+      "equals": {
+        "message": "Invalid params"
+      }
     }
   ],
   "unreleased": {
-    "methods": [],
-    "cases": []
+    "methods": [
+      "mail.locate",
+      "mail.place"
+    ],
+    "cases": [
+      "mail locate rejects unknown fields",
+      "mail locate requires an account id",
+      "mail locate refuses an unknown account",
+      "mail locate rejects malformed IMAP IDs before any connection",
+      "mail place refuses a Gmail place with a read-state label before credentials",
+      "mail place refuses an unsorted Gmail place",
+      "mail place refuses two places for one message",
+      "mail place rejects unknown item fields"
+    ]
   }
 }

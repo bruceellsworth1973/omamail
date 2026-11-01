@@ -63,7 +63,10 @@ impl Session {
         if method.starts_with("agent.") {
             return Err("unknown_method");
         }
-        if matches!(method, "mail.list" | "mail.read" | "mail.act" | "mail.send") {
+        if matches!(
+            method,
+            "mail.list" | "mail.read" | "mail.act" | "mail.send" | "mail.locate" | "mail.place"
+        ) {
             return Box::pin(self.mail_call(method, params)).await;
         }
         if matches!(method, "system.info" | "system.quit" | "providers.list") {
@@ -480,7 +483,7 @@ pub fn dispatch(method: &str, params: &Value) -> Result<Value, &'static str> {
     match method {
         "system.info" => Ok(json!({
             "name": "omamail", "version": env!("CARGO_PKG_VERSION"),
-            "protocol": 1, "apiVersion": 8, "methods": methods::available(),
+            "protocol": 1, "apiVersion": 9, "methods": methods::available(),
             "capabilities": {"agent": cfg!(all(feature = "agent", unix))}
         })),
         "system.quit" => Ok(json!({"quitReady": true})),

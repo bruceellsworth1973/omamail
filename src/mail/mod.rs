@@ -1,6 +1,7 @@
 mod account;
 pub(crate) mod action;
 pub(crate) mod list;
+pub(crate) mod place;
 pub(crate) mod read;
 mod read_links;
 pub(crate) mod send;
@@ -23,6 +24,9 @@ mod read_tests;
 
 #[cfg(test)]
 mod action_tests;
+
+#[cfg(test)]
+mod place_tests;
 
 #[cfg(test)]
 mod send_tests;

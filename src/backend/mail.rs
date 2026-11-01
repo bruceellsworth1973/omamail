@@ -341,6 +341,85 @@ impl crate::mail::action::ActionLookup for AccountActionLookup<'_> {
     }
 }
 
+/// Undo history: each provider's own `locate` and `place`. IMAP and Microsoft
+/// 365 run detached like their actions, so a caller that gives up cannot leave
+/// a half-made move behind.
+struct ProviderPlaces<'a> {
+    session: &'a Session,
+}
+
+impl crate::mail::place::Places for ProviderPlaces<'_> {
+    fn locate<'a>(
+        &'a self,
+        account: &'a crate::mail::Account,
+        ids: &'a [String],
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<Vec<crate::mail::place::Located>, &'static str>> + Send + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            match account.provider {
+                Provider::Gmail => self.session.gmail.locate(account, ids).await,
+                Provider::Jmap => self.session.jmap.locate(account, ids).await,
+                Provider::Hey => crate::providers::hey_place::locate(account, ids).await,
+                Provider::Imap | Provider::Outlook => {
+                    let (account, ids) = (account.clone(), ids.to_vec());
+                    tokio::spawn(async move {
+                        crate::providers::imap::place::locate(&account, &ids).await
+                    })
+                    .await
+                    .map_err(|_| "worker_failed")?
+                }
+                Provider::M365 => {
+                    let (account, ids) = (account.clone(), ids.to_vec());
+                    tokio::spawn(async move {
+                        crate::providers::m365::place::locate(&account, &ids).await
+                    })
+                    .await
+                    .map_err(|_| "worker_failed")?
+                }
+            }
+        })
+    }
+
+    fn place<'a>(
+        &'a self,
+        account: &'a crate::mail::Account,
+        items: &'a [crate::mail::place::PlaceItem],
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<Vec<crate::mail::place::PlaceOutcome>, &'static str>>
+                + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            match account.provider {
+                Provider::Gmail => self.session.gmail.place(account, items).await,
+                Provider::Jmap => self.session.jmap.place(account, items).await,
+                Provider::Hey => crate::providers::hey_place::place(account, items).await,
+                Provider::Imap | Provider::Outlook => {
+                    let (account, items) = (account.clone(), items.to_vec());
+                    tokio::spawn(async move {
+                        crate::providers::imap::place::place(&account, &items).await
+                    })
+                    .await
+                    .map_err(|_| "worker_failed")?
+                }
+                Provider::M365 => {
+                    let (account, items) = (account.clone(), items.to_vec());
+                    tokio::spawn(async move {
+                        crate::providers::m365::place::place(&account, &items).await
+                    })
+                    .await
+                    .map_err(|_| "worker_failed")?
+                }
+            }
+        })
+    }
+}
+
 fn summaries(messages: &[Value]) -> Result<Vec<Value>, &'static str> {
     let now = chrono::Utc::now().timestamp_millis();
     messages
@@ -412,6 +491,22 @@ impl Session {
                     &ProviderMutation { session: self },
                 )
                 .await
+            }
+            "mail.locate" => {
+                let request =
+                    crate::mail::place::locate_request(params, crate::mail::resolve_account)?;
+                crate::mail::place::locate_with(&request, &ProviderPlaces { session: self }).await
+            }
+            "mail.place" => {
+                let request =
+                    crate::mail::place::place_request(params, crate::mail::resolve_account)?;
+                let (result, stale) =
+                    crate::mail::place::place_with(&request, &ProviderPlaces { session: self })
+                        .await?;
+                if stale {
+                    self.invalidate_action_caches(&request.account.id).await;
+                }
+                Ok(result)
             }
             _ => Err("unknown_method"),
         }

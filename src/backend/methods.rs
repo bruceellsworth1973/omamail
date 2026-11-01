@@ -198,6 +198,8 @@ pub const ALL: &[&str] = &[
     "m365.sendAs",
     "m365.invalidate",
     "m365.cancel",
+    "mail.locate",
+    "mail.place",
 ];
 
 pub fn available() -> Vec<&'static str> {

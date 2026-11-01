@@ -14,6 +14,7 @@ mod discovery;
 mod mailbox;
 pub(crate) use mailbox::validate_action_id;
 mod mutation;
+pub(crate) mod place;
 mod query;
 mod read;
 mod resource;

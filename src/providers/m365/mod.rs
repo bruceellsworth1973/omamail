@@ -9,6 +9,7 @@ mod ids;
 mod mailbox;
 mod model;
 mod params;
+pub(crate) mod place;
 mod read;
 mod send;
 mod signin;

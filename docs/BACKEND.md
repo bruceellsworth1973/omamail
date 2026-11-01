@@ -248,6 +248,19 @@ The low-level `call` command also exposes older provider-specific mutation
 methods; the dry-run guarantee belongs to these four `mail.*` operations and
 the seven root commands.
 
+## Undo history: `mail.locate` and `mail.place`
+
+API 9 adds two RPC methods (no CLI command) for an undo/redo history of actions that move or delete mail. A place says where one message is: its folder, label set, mailbox set or box. It is opaque to callers and provider-specific; read/unread, starred and other state that does not say where a message is never belongs to a place, and undo or redo never change it.
+
+`mail.locate {accountId, ids}` answers `{places: [{id, place} | {id, error}]}`, one entry per requested id in request order (a repeated id is read once and answered each time). It reads the provider live, never a cache, and never changes anything. `mail.place {accountId, items: [{id, place}]}` moves each message from wherever it is now to `place`, a value `mail.locate` answered for the same account, and answers `{results: [{id, newId} | {id, error}]}` in item order. `newId` is the message's id afterwards: the same id where ids are stable, a new one on IMAP. A message already at its place succeeds with `newId` equal to `id` and nothing written. Callers replace their ids with the `newId`s, so locate, place, locate, place cycles stay exact.
+
+Both take 1 to 1000 ids or items and require `accountId` (there is no fallback to the active account; an unknown account is `mail_account_unknown`). Ids are checked like `mail.act` ids for the account's provider. A place arrives from the UI and is untrusted: before any provider is asked, every item is checked, and a request with an unknown key, a repeated id, a place that is not an object, a place over 64 KiB or a place outside its provider's exact shape is refused whole with `invalid_params` (or a provider's `undo_*` code), so no earlier item moves. Per-message failures are the provider's error codes; `undo_folder_gone` means a recorded folder or mailbox no longer exists, `undo_message_lost` that a moved message could not be found again, `undo_unsupported` that the provider cannot reverse that move exactly, and `mail_place_invalid_response` that the provider answered something malformed. After a `mail.place` in which anything may have been written (any move, or any failed item), the account's list, body and render caches are invalidated as after `mail.act`.
+
+Each provider owns its place in its own module (`src/providers/gmail_place.rs`, `src/providers/imap/place.rs`, `src/providers/jmap/place.rs`, `src/providers/m365/place.rs`, `src/providers/hey_place.rs`) behind the shared checks in `src/mail/place.rs`; a provider without one refuses with `undo_unsupported`.
+
+- **Gmail**: `{"labels": [...]}`, the message's label ids sorted and without repeats, leaving out `UNREAD`, `STARRED`, `IMPORTANT`, `DRAFT`, `SENT`, `CHAT` and every `CATEGORY_*` label; an archived message without labels is `{"labels": []}`. Label ids are ASCII letters, digits, `_` and `-`, at most 256 bytes, at most 100 per place; a place naming a left-out label, unsorted or repeated labels, or any other key is refused. Locate reads `messages/{id}?format=minimal`, eight at a time under the account's quota pacing. Place reads the live labels and writes only the difference through the account's mutation queue: out of the trash with `untrash`, then one `batchModify` (up to 1000 ids) for each group of messages with the same additions and removals, then into the trash with `trash`, then a `batchModify` for whatever trashing itself changed. `TRASH` is never sent through modify and left-out labels are never sent at all.
+- **IMAP, Outlook and Proton Bridge**, **JMAP**, **Microsoft 365** and **HEY**: see each provider's notes in `docs/providers/`.
+
 ## Domain ownership
 
 | Area | Rust backend responsibility | UI or external boundary |
