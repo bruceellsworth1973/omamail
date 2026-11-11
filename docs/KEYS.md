@@ -313,7 +313,13 @@ Three rules, all in `ui/account/Model.js` so the node tests reach them:
 - **`cursorAfterRemoval`** — the row the cursor is on is about to leave, because
   it was archived or trashed. The cursor takes its place: the row below, or the
   row above at the end. Worked out *before* the action, while the row still has
-  neighbours.
+  neighbours. The row leaves the list in the same step the cursor moves:
+  `MailAccount.beginDeparture` takes every row the action removes
+  (`Model.survivesAction`) off `messages` at the keystroke, before the backend
+  prepares the intent. The departed rows still travel in the view sent to
+  `model.intent`, every list the backend or a load hands back is drawn without
+  them while their intent is being prepared, and an intent that fails or is
+  refused puts them back in their settled order (`Model.withRowsInOrder`).
 - **`cursorAfterReload`** — the whole list was replaced, by a mailbox switch, a
   search, or a refresh. A cursor whose message survived keeps its place; one
   whose message is gone is dropped, and the next `j` starts at the top.

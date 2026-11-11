@@ -1212,6 +1212,49 @@ function cachedDetailSummary(known, summary) {
   return rowWithThread(withLabels(summary, known.labelIds.slice()), block)
 }
 
+function withoutRows(list, rows) {
+  var source = Array.isArray(list) ? list : []
+  var gone = Array.isArray(rows) ? rows : []
+  if (gone.length === 0) return source
+  var goneIds = {}
+  for (var g = 0; g < gone.length; g++) if (gone[g]) goneIds[gone[g].id] = true
+  var out = []
+  for (var i = 0; i < source.length; i++) {
+    if (source[i] && goneIds[source[i].id] === true) continue
+    out.push(source[i])
+  }
+  return out
+}
+
+function withRowsInOrder(list, rows, order) {
+  var source = Array.isArray(list) ? list : []
+  var returning = Array.isArray(rows) ? rows : []
+  if (returning.length === 0) return source
+  var settled = Array.isArray(order) ? order : []
+  var positionOf = {}
+  for (var o = 0; o < settled.length; o++) if (settled[o]) positionOf[settled[o].id] = o
+  var listedIds = {}
+  for (var l = 0; l < source.length; l++) if (source[l]) listedIds[source[l].id] = true
+  var pending = []
+  for (var r = 0; r < returning.length; r++) {
+    var row = returning[r]
+    if (!row || listedIds[row.id] === true) continue
+    listedIds[row.id] = true
+    pending.push({row: row, position: positionOf[row.id] === undefined ? settled.length : positionOf[row.id]})
+  }
+  pending.sort(function(a, b) { return a.position - b.position })
+  var out = []
+  var next = 0
+  for (var i = 0; i < source.length; i++) {
+    var position = source[i] ? positionOf[source[i].id] : undefined
+    while (position !== undefined && next < pending.length && pending[next].position < position)
+      out.push(pending[next++].row)
+    out.push(source[i])
+  }
+  while (next < pending.length) out.push(pending[next++].row)
+  return out
+}
+
 function indexById(list, id) {
   var source = Array.isArray(list) ? list : []
   for (var i = 0; i < source.length; i++) {

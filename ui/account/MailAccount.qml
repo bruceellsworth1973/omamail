@@ -183,6 +183,8 @@ Item {
   property string rawLabelId: ""
   property var messages: []
   property var previewMessages: []
+  property var departures: []
+  property var departureOrder: []
   property var labels: []
   property var sendAsAliases: []
   property bool sendAsLoading: false
@@ -1069,7 +1071,7 @@ Item {
         else {
           liveSummaries = root.hydrateSummaries(result.live)
           root.listLiveSerial++
-          root.messages = root.hydrateSummaries(result.visible)
+          root.messages = root.withoutDepartedRows(root.hydrateSummaries(result.visible), root.cacheKey)
           root.listLoaded = true
           root.lastError = preservedError
           root.listRefreshed()
@@ -1252,7 +1254,7 @@ Item {
     if (arrivalFloor === 0) arrivalFloor = Number(result[1]) || 0
     notificationsPrimed = true
 
-    messages = merged
+    messages = withoutDepartedRows(merged, cacheKey)
     loadedDepth = merged.length
     listLoaded = true
     lastError = ""
@@ -1785,17 +1787,60 @@ Item {
   }
 
   function intentView() {
-    return {messages: messages, previewMessages: previewMessages,
+    return {messages: withDepartedRows(messages), previewMessages: previewMessages,
       memberSummaries: memberSummaries, selectedId: selectedId,
       selectedMessage: selectedMessage, selectedThread: selectedThread,
       inboxUnread: inboxUnread}
+  }
+
+  function departedRowsOf(query) {
+    var rows = []
+    for (var d = 0; d < departures.length; d++)
+      if (departures[d].query === query) rows = rows.concat(departures[d].rows)
+    return rows
+  }
+
+  function withDepartedRows(list) {
+    return Model.withRowsInOrder(list, departedRowsOf(cacheKey), departureOrder)
+  }
+
+  function withoutDepartedRows(list, query) {
+    return Model.withoutRows(list, departedRowsOf(query))
+  }
+
+  function leavingRows(ids, action) {
+    var rows = []
+    for (var i = 0; i < ids.length; i++) {
+      var at = Model.indexById(messages, ids[i])
+      if (at < 0) continue
+      if (!Model.survivesAction(mailboxKey, action, rawQuery, hasLabels, rawLabelId, messages[at]))
+        rows.push(messages[at])
+    }
+    return rows
+  }
+
+  function beginDeparture(rows, query) {
+    if (rows.length === 0) return null
+    if (departures.length === 0) departureOrder = messages
+    var departure = {query: query, rows: rows}
+    departures = departures.concat([departure])
+    messages = Model.withoutRows(messages, rows)
+    return departure
+  }
+
+  function endDeparture(departure, restoresRows) {
+    if (!departure) return
+    departures = departures.filter(function(held) { return held !== departure })
+    if (restoresRows && departure.query === cacheKey)
+      messages = Model.withRowsInOrder(messages, departure.rows, departureOrder)
+    if (departures.length === 0) departureOrder = []
   }
 
   // Convert native date values at the display boundary, once per returned row.
   function applyIntentView(view, query, selectedBefore) {
     if (!view) return
     if (query === cacheKey && !deferredLoadCleared(query)) {
-      messages = hydrateSummaries(view.messages || [])
+      messages = withoutDepartedRows(hydrateSummaries(view.messages || []), query)
       previewMessages = hydrateSummaries(view.previewMessages || [])
       var members = view.memberSummaries || ({})
       for (var id in members) hydrateSummary(members[id])
@@ -1840,6 +1885,7 @@ Item {
       oldPageToken = ""
     }
     stopLiveList()
+    var departure = memberOnly || allRead ? null : beginDeparture(leavingRows(ids, action), actionQuery)
     var parameters = {accountId: account, query: actionQuery, action: action,
       ids: ids, allRead: allRead === true, quiet: quiet === true,
       memberOnly: memberOnly === true, mailboxKey: mailboxKey,
@@ -1853,6 +1899,7 @@ Item {
       if (root.accountId === account && preparationEpoch === intents.epoch)
         root.actionPreparations = Math.max(0, root.actionPreparations - 1)
       if (error || !prepared) {
+        root.endDeparture(departure, true)
         finish(ids, error || "Could not prepare the action")
         if (root.accountId === account && preparationEpoch === intents.epoch) {
           root.fail(error || "Could not prepare the action")
@@ -1865,6 +1912,7 @@ Item {
         return
       }
       if (prepared.refused) {
+        root.endDeparture(departure, true)
         finish(ids, "This mailbox cannot perform that action")
         if (root.accountId === account && preparationEpoch === intents.epoch) {
           root.refuseUnavailableAction(action)
@@ -1877,6 +1925,7 @@ Item {
       }
       var targets = prepared.targets || []
       var rows = prepared.rows || []
+      root.endDeparture(departure, false)
       if (targets.length === 0) { finish(ids, "Those messages are no longer available"); return }
       if (root.accountId !== account || !root.ready || intents.generation !== prepared.generation) {
         finish(ids, "Account changed")
