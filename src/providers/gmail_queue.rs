@@ -188,7 +188,9 @@ async fn drain(inner: Arc<Inner>, account: String) {
                 }
             }
         };
+        crate::probe(&format!("queue: sending {}", entry.job.method));
         let outcome = send(&inner, &account, &entry).await;
+        crate::probe(&format!("queue: sent {} ok={}", entry.job.method, outcome.is_ok()));
         settle(&inner, &account, entry, outcome);
     }
 }
@@ -203,7 +205,7 @@ async fn send(inner: &Inner, account: &str, entry: &Entry) -> Outcome {
         )
         .await;
         match (answer, wait) {
-            (Err("gmail_rate_limited"), Some(wait)) => tokio::time::sleep(*wait).await,
+            (Err("gmail_rate_limited"), Some(wait)) => { crate::probe("queue: rate limited, backing off"); tokio::time::sleep(*wait).await }
             (answer, _) => return answer,
         }
     }

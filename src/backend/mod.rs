@@ -59,6 +59,14 @@ impl Session {
     // re-enter this dispatcher; embedding every provider future here overflowed
     // the worker stack in the real Quickshell large-request integration test.
     pub async fn dispatch(&self, method: &str, params: &Value) -> Result<Value, &'static str> {
+        let serial = std::time::Instant::now();
+        crate::probe(&format!("rpc start {method}"));
+        let answer = Box::pin(self.dispatch_probed(method, params)).await;
+        crate::probe(&format!("rpc end {method} {} ms ok={}", serial.elapsed().as_millis(), answer.is_ok()));
+        answer
+    }
+
+    async fn dispatch_probed(&self, method: &str, params: &Value) -> Result<Value, &'static str> {
         #[cfg(not(all(feature = "agent", unix)))]
         if method.starts_with("agent.") {
             return Err("unknown_method");

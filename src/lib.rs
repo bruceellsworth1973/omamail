@@ -1,3 +1,10 @@
+pub fn probe(stage: &str) {
+    use std::io::Write;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/run/user/1000/omamail-probe.log") {
+        let _ = writeln!(file, "{now} {stage}");
+    }
+}
 pub mod account;
 // Detached assistant workers currently rely on Linux pidfds and private storage.
 #[cfg(all(feature = "agent", unix))]
