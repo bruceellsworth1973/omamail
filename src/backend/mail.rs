@@ -503,11 +503,9 @@ impl Session {
                 let (result, stale) =
                     crate::mail::place::place_with(&request, &ProviderPlaces { session: self })
                         .await?;
-                crate::probe("mail.place: provider done");
                 if stale {
                     self.invalidate_action_caches(&request.account.id).await;
                 }
-                crate::probe("mail.place: caches invalidated, replying");
                 Ok(result)
             }
             _ => Err("unknown_method"),
@@ -517,9 +515,7 @@ impl Session {
     async fn invalidate_action_caches(&self, account: &str) {
         let params = json!({"accountId":account});
         // Cache failures cannot erase confirmed delivery or invite a retry.
-        crate::probe("invalidate: queryRestore");
         if let Ok(restored) = self.queries.call("cache.queryRestore", &params).await {
-            crate::probe("invalidate: queryInvalidate");
             let _ = self
                 .queries
                 .call(
@@ -536,11 +532,9 @@ impl Session {
                 )
                 .await;
         }
-        crate::probe("invalidate: renders");
         if let Ok(mut renders) = self.renders.lock() {
             renders.invalidate(account, None);
         }
-        crate::probe("invalidate: body and resource clear");
         let _ = tokio::task::spawn_blocking(move || {
             for method in ["cache.resourceClear", "cache.bodyClear"] {
                 let _ = crate::cache::call(method, &params);

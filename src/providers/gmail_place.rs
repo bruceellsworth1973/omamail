@@ -240,9 +240,7 @@ async fn modify_phase(remote: &impl Remote, items: &[PlaceItem], moves: &mut [Mo
 }
 
 async fn place_with(remote: &impl Remote, items: &[PlaceItem]) -> Vec<PlaceOutcome> {
-    crate::probe("place: reading current labels");
     let currents = locations(remote, items.iter().map(|item| item.id.as_str())).await;
-    crate::probe("place: current labels read");
     let mut moves: Vec<Move> = items
         .iter()
         .zip(currents)
@@ -260,12 +258,9 @@ async fn place_with(remote: &impl Remote, items: &[PlaceItem]) -> Vec<PlaceOutco
     // Out of the trash first, so labels land on a message Gmail lists again;
     // into the trash last, then whatever trashing changed is set right.
     trash_phase(remote, items, &mut moves, false).await;
-    crate::probe("place: untrash phase done");
     modify_phase(remote, items, &mut moves).await;
-    crate::probe("place: modify phase done");
     trash_phase(remote, items, &mut moves, true).await;
     modify_phase(remote, items, &mut moves).await;
-    crate::probe("place: all phases done");
     items
         .iter()
         .zip(moves)
@@ -354,9 +349,7 @@ impl Session {
         account: &Account,
         items: &[PlaceItem],
     ) -> Result<Vec<PlaceOutcome>, &'static str> {
-        crate::probe("place: checking account");
         let live = self.live(account).await?;
-        crate::probe("place: account checked");
         Ok(place_with(&live, items).await)
     }
 }
