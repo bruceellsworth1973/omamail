@@ -217,11 +217,9 @@ impl Session {
     ) -> Result<(u64, tokio::sync::oneshot::Receiver<queue::Outcome>), &'static str> {
         let plan = plan(method, params)?;
         let account = field(params, "accountId", true)?.to_lowercase();
-        crate::probe(&format!("enqueue {method}: listing accounts"));
         let accounts = tokio::task::spawn_blocking(crate::account::list)
             .await
             .map_err(|_| "session_failed")??;
-        crate::probe(&format!("enqueue {method}: accounts listed"));
         if !accounts["accounts"].as_array().is_some_and(|entries| {
             entries
                 .iter()

@@ -553,7 +553,6 @@ Item {
   }
 
   signal listRefreshed()
-  onListRefreshed: console.warn("OMAMAIL-PROBE", Date.now(), "listRefreshed", messages.length)
 
   // Cancelling runs on teardown and on every mailbox switch, which are exactly
   // the moments the client may already be gone — an account being removed, or
@@ -1886,7 +1885,6 @@ Item {
       oldPageToken = ""
     }
     stopLiveList()
-    console.warn("OMAMAIL-PROBE", Date.now(), "act", action, JSON.stringify(ids), "pendingAction=" + pendingAction)
     var departure = memberOnly || allRead ? null : beginDeparture(leavingRows(ids, action), actionQuery)
     var parameters = {accountId: account, query: actionQuery, action: action,
       ids: ids, allRead: allRead === true, quiet: quiet === true,
@@ -1898,7 +1896,6 @@ Item {
     actionPreparations++
     if (pendingAction === "") pendingActionQuery = actionQuery
     intents.begin(parameters, function(prepared, error, selectedBefore) {
-      console.warn("OMAMAIL-PROBE", Date.now(), "prepared", String(error || ""), prepared ? JSON.stringify(prepared.targets) : "null", prepared ? prepared.generation : "")
       if (root.accountId === account && preparationEpoch === intents.epoch)
         root.actionPreparations = Math.max(0, root.actionPreparations - 1)
       if (error || !prepared) {
@@ -1942,9 +1939,7 @@ Item {
       var optimisticToken = invalidates ? "" : oldPageToken
       function done(payload, failure, failedIds) {
         var failed = failure ? (Array.isArray(failedIds) ? failedIds : rows) : []
-        console.warn("OMAMAIL-PROBE", Date.now(), "done", String(failure || ""), "located=" + JSON.stringify(located))
         intents.settle(account, actionQuery, prepared.token, failed, function(settled, settleError) {
-          console.warn("OMAMAIL-PROBE", Date.now(), "settled", String(settleError || ""), "gen=" + intents.generation + "/" + prepared.generation, "acct=" + root.accountId + "/" + account)
           if (root.accountId !== account || intents.generation !== prepared.generation) {
             finish(ids, "Account changed")
             return
@@ -2014,14 +2009,11 @@ Item {
       function recordedDispatch() {
         if (allRead || !UndoHistory.recordsMove(action) || !root.platform
             || !root.platform.backendCanUndoMoves || !root.backend) { dispatch(); return }
-        console.warn("OMAMAIL-PROBE", Date.now(), "locate", JSON.stringify(targets))
         root.backend.call("mail.locate", {accountId: account, ids: targets}, function(result, error) {
-          console.warn("OMAMAIL-PROBE", Date.now(), "located", JSON.stringify(error || ""), JSON.stringify(result))
           if (!error && result && Array.isArray(result.places)) located = result.places
           dispatch()
         })
       }
-      console.warn("OMAMAIL-PROBE", Date.now(), "dispatching", "canUndo=" + (!!root.platform && root.platform.backendCanUndoMoves), "records=" + UndoHistory.recordsMove(action), "queued=" + (root.pendingAction !== ""))
       if (root.pendingAction !== "") root.queueAction(ids.join(","), action, actionQuery, quiet, memberOnly, recordedDispatch, function(intoToken) {
         intents.coalesce(account, actionQuery, prepared.token, intoToken, prepared.generation)
       }, prepared.token, parameters.sourceLabelId, typeof completion === "function")
@@ -2039,7 +2031,6 @@ Item {
     for (var i = 0; i < failed.length; i++)
       failedTargets = failedTargets.concat((targetsOf && targetsOf[failed[i]]) || [failed[i]])
     var items = UndoHistory.stepItems(located, failedTargets)
-    console.warn("OMAMAIL-PROBE", Date.now(), "recordMove", JSON.stringify(items))
     if (items.length > 0) platform.recordMove({accountId: accountId, label: actionLabel(action), items: items})
   }
 

@@ -2111,7 +2111,6 @@ Item {
   }
 
   function recordMove(step) {
-    console.warn("OMAMAIL-PROBE", Date.now(), "history", JSON.stringify(step))
     moveHistory = UndoHistory.record(moveHistory, step)
   }
 
@@ -2129,15 +2128,12 @@ Item {
     }
     var ids = step.items.map(function(item) { return item.id })
     moveHistoryBusy = true
-    console.warn("OMAMAIL-PROBE", Date.now(), "undo-start", ids.length)
     backend.call("mail.locate", {accountId: step.accountId, ids: ids}, function(located, locateError) {
-      console.warn("OMAMAIL-PROBE", Date.now(), "undo-located")
       if (locateError || !located || !Array.isArray(located.places)) {
         root.finishMoveStep(host, back, step, null, null, locateError || "no answer")
         return
       }
       backend.call("mail.place", {accountId: step.accountId, items: step.items}, function(placed, placeError) {
-        console.warn("OMAMAIL-PROBE", Date.now(), "undo-placed")
         if (placeError || !placed || !Array.isArray(placed.results))
           root.finishMoveStep(host, back, step, null, null, placeError || "no answer")
         else root.finishMoveStep(host, back, step, located.places, placed.results, "")
@@ -2163,7 +2159,6 @@ Item {
     host.refreshCounts()
     if (!unified && host !== current) host.refresh()
     refresh()
-    console.warn("OMAMAIL-PROBE", Date.now(), "undo-refresh-called")
   }
 
   function refresh() {
